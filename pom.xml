@@ -110,6 +110,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>2.10.1</version>
+                <configuration>
+                    <additionalparam>-Xdoclint:none</additionalparam>
+                </configuration>
                 <executions>
                   <execution>
                     <id>attach-javadocs</id>
@@ -118,20 +121,6 @@
                       </goals>
                   </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                 <groupId>org.apache.maven.plugins</groupId>
-                 <artifactId>maven-gpg-plugin</artifactId>
-                 <version>1.6</version>
-                 <executions>
-                     <execution>
-                         <id>sign-artifacts</id>
-                         <phase>verify</phase>
-                         <goals>
-                             <goal>sign</goal>
-                         </goals>
-                     </execution>
-                 </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>                           
@@ -202,4 +191,28 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+    
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>1.6</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
