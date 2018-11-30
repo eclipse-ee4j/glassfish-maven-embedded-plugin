@@ -25,7 +25,7 @@
     </parent>
 
     <groupId>org.glassfish.embedded</groupId>
-    <artifactId>maven-embedded-glassfish-plugin</artifactId>
+    <artifactId>embedded-glassfish-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
     <version>5.1-SNAPSHOT</version>
 
