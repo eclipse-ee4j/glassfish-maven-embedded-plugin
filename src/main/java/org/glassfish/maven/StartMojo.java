@@ -19,9 +19,6 @@ package org.glassfish.maven;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 
-import java.lang.reflect.Method;
-import java.util.Properties;
-
 /**
  * This Mojo starts the Embedded GlassFish with the configured parameters
  * supplied by the user in the embedded-glassfish-maven-plugin configuration.

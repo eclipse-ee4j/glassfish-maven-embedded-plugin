@@ -19,8 +19,6 @@ package org.glassfish.maven;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 
-import java.lang.reflect.Method;
-
 /**
  * This Mojo stops the Embedded GlassFish server.
  *
