@@ -255,7 +255,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      *
      * @parameter default-value="${plugin.artifacts}"
      */
-    private java.util.List<Artifact> artifacts; // pluginDependencies
+    private List<Artifact> artifacts; // pluginDependencies
 
     /**
      * @component
