@@ -38,4 +38,9 @@ jobs:
             --no-transfer-progress \
             --activate-profiles staging \
             install
-
+    - name: Run test
+      run: |
+        mvn --no-transfer-progress \
+            --activate-profiles staging \
+            --file src/test \
+            install
