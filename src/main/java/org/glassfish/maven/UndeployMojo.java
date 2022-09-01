@@ -18,6 +18,8 @@ package org.glassfish.maven;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
 
 /**
  * This Mojo undeploys the application from the Embedded GlassFish server.
@@ -27,10 +29,8 @@ import org.apache.maven.plugin.MojoFailureException;
  * 'undeploymentParams' configuration.
  *
  * @author bhavanishankar@dev.java.net
- * @goal undeploy
- * @phase post-integration-test
  */
-
+@Mojo(name = "undeploy", defaultPhase = LifecyclePhase.POST_INTEGRATION_TEST)
 public class UndeployMojo extends AbstractDeployMojo {
 
     public void execute() throws MojoExecutionException, MojoFailureException {

@@ -18,15 +18,16 @@ package org.glassfish.maven;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
 
 /**
  * This Mojo starts the Embedded GlassFish with the configured parameters
  * supplied by the user in the embedded-glassfish-maven-plugin configuration.
  *
  * @author bhavanishankar@dev.java.net
- * @goal start
- * @phase pre-integration-test
  */
+@Mojo(name = "start", defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class StartMojo extends AbstractServerMojo {
 
     public void execute() throws MojoExecutionException, MojoFailureException {

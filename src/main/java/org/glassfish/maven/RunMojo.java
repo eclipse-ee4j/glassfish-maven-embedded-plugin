@@ -20,6 +20,8 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 import java.io.BufferedReader;
@@ -44,9 +46,8 @@ import java.util.Properties;
  * will exit.
  *
  * @author bhavanishankar@dev.java.net
- * @goal run
- * @phase pre-integration-test
  */
+@Mojo(name = "run", defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class RunMojo extends AbstractDeployMojo {
 
     public void execute() throws MojoExecutionException, MojoFailureException {

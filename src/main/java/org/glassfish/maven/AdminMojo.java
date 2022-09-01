@@ -18,6 +18,9 @@ package org.glassfish.maven;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
 
 import java.lang.reflect.Method;
 
@@ -26,9 +29,8 @@ import java.lang.reflect.Method;
  * The commands should be specified in the commands string array.
  *
  * @author bhavanishankar@dev.java.net
- * @goal admin
- * @phase pre-integration-test
  */
+@Mojo(name = "admin", defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class AdminMojo extends AbstractServerMojo {
 
     /**
@@ -40,9 +42,8 @@ public class AdminMojo extends AbstractServerMojo {
      *      &lt;command&gt;set configs.config.server-config.network-config.protocols.protocol.http-listener.http.websockets-support-enabled=true&lt;/command&gt;
      * &lt;/commands&gt;
      * </pre>
-     *
-     * @parameter expression="${commands}"
      */
+    @Parameter(property = "commands")
     protected String[] commands;
 
     @Override

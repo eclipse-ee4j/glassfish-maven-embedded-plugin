@@ -18,15 +18,15 @@ package org.glassfish.maven;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
 
 /**
  * This Mojo stops the Embedded GlassFish server.
  *
  * @author bhavanishankar@dev.java.net
- * @goal stop
- * @phase post-integration-test
  */
-
+@Mojo(name = "stop", defaultPhase = LifecyclePhase.POST_INTEGRATION_TEST)
 public class StopMojo extends AbstractServerMojo {
 
     public void execute() throws MojoExecutionException, MojoFailureException {

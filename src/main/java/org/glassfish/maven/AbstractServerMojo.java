@@ -26,6 +26,8 @@ import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.Component;
+import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectBuilder;
 
@@ -72,16 +74,14 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     /**
      * The remote repositories where artifacts are located.
      * This is automatically injected by the Maven framework.
-     *
-     * @parameter expression="${project.remoteArtifactRepositories}"
      */
+    @Parameter(property = "project.remoteArtifactRepositories")
     protected List remoteRepositories;
 
     /**
      * Identifier of the Embedded GlassFish server.
-     *
-     * @parameter expression="${serverID}" default-value="maven"
      */
+    @Parameter(property = "serverID", defaultValue = "maven")
     protected String serverID;
 
     /**
@@ -95,38 +95,34 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * This setting is ignored when configFile option is used.
      * <p/>
      *
-     * @parameter expression="${port}" default-value="-1"
      */
+    @Parameter(property = "port", defaultValue = "-1")
     protected int port;
 
 
     /**
      * Location of valid GlassFish installation.
-     *
-     * @parameter expression="${installRoot}"
      */
+    @Parameter(property = "installRoot")
     protected String installRoot;
 
     /**
      * Location of valid GlassFish domain.
-     *
-     * @parameter expression="${instanceRoot}"
      */
+    @Parameter(property = "instanceRoot")
     protected String instanceRoot;
 
     /**
      * Location of custom configuration file (i.e., location of custom domain.xml).
-     *
-     * @parameter expression="${configFile}"
      */
+    @Parameter(property = "configFile")
     protected String configFile;
 
     /**
      * Specify whether the custom configuration file or config/domain.xml at
      * the specified instance root is operated read only or not.
-     *
-     * @parameter expression="${configFileReadOnly}" default-value="true"
      */
+    @Parameter(property = "configFileReadOnly", defaultValue = "true")
     protected Boolean configFileReadOnly;
 
     /**
@@ -148,8 +144,8 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * correctly specifying port numbers for the the names of the network-listener element
      * of your domain.xml.
      *
-     * @parameter
      */
+    @Parameter
     protected Map<String, String> ports;
 
     /**
@@ -160,9 +156,8 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      *      &lt;property>GlassFish_Platform=felix&lt;/property&gt;
      * &lt;/bootstrapProperties&gt;
      * </pre>
-     *
-     * @parameter
      */
+    @Parameter
     protected List<String> bootstrapProperties;
 
     /**
@@ -172,9 +167,8 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * &lt;bootstrapPropertiesFile&gt;bootstrap.properties&lt;/bootstrapPropertiesFile&gt;
      * <p/>
      * where bootstrap.properties is a file containing the bootstrap properties.
-     *
-     * @parameter
      */
+    @Parameter
     protected File bootstrapPropertiesFile;
 
     /**
@@ -186,9 +180,8 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      *      &lt;property>embedded-glassfish-config.server.jms-service.jms-host.default_JMS_host.port=17676&lt;/property&gt;
      * &lt;/glassfishProperties&gt;
      * </pre>
-     *
-     * @parameter
      */
+    @Parameter
     protected List<String> glassfishProperties;
 
     /**
@@ -198,9 +191,8 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * &lt;glassfishPropertiesFile&gt;glassfish.properties&lt;/glassfishPropertiesFile&gt;
      * <p/>
      * where glassfish.properties is a file containing the GlassFish properties.
-     *
-     * @parameter
      */
+    @Parameter
     protected File glassfishPropertiesFile;
 
     /**
@@ -212,9 +204,8 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      *      &lt;property&gt;com.sun.aas.imqBin=${env.S1AS_HOME}/../mq/bin&lt;/property&gt;
      * &lt;/systemProperties>
      * </pre>
-     *
-     * @parameter
      */
+    @Parameter
     protected List<String> systemProperties;
 
     /**
@@ -222,9 +213,8 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * <p/>
      * For example:
      * &lt;systemPropertiesFile&gt;/tmp/system.properties&lt;/systemPropertiesFile&gt;
-     *
-     * @parameter
      */
+    @Parameter
     protected File systemPropertiesFile;
 
     /**
@@ -234,56 +224,44 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * Embedded GlassFish creates the temporary
      * file system under java.io.tmpdir unless a different directory is specified with
      * glassfish.embedded.tmpdir system property.
-     *
-     * @parameter expression="${autoDelete}" default-value="true"
      */
+    @Parameter(property = "autoDelete", defaultValue = "true")
     protected Boolean autoDelete;
 
     /**
      * The maven project.
-     *
-     * @parameter expression="${project}"
-     * @required
-     * @readonly
      */
+    @Parameter(property = "project", required = true, readonly = true)
     protected MavenProject project;
 
     /**
      * This is automatically injected by the Maven framework.
-     *
-     * @parameter default-value="${plugin.artifacts}"
      */
+    @Parameter(defaultValue = "${plugin.artifacts}")
     private List<Artifact> artifacts; // pluginDependencies
 
-    /**
-     * @component
-     */
+    @Component
     protected MavenProjectBuilder projectBuilder;
 
     /**
      * This is automatically injected by the Maven framework.
-     *
-     * @parameter expression="${localRepository}"
-     * @required
      */
+    @Parameter(property = "localRepository", required = true)
     protected ArtifactRepository localRepository;
 
-    /**
-     * @component
-     */
+    @Component
     protected ArtifactResolver resolver;
 
     /**
      * Used to construct artifacts for deletion/resolution...
-     *
-     * @component
      */
+    @Component
     protected ArtifactFactory factory;
 
     /**
-     * @parameter expression="${containerType}" default-value="all"
      * @deprecated This is a deprecated and unused configuration. Likely to be removed in the next version of the plugin.
      */
+    @Parameter(property = "containerType", defaultValue = "all")
     protected String containerType;
 
 //    protected GlassFish gf;
@@ -292,9 +270,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     protected static HashMap<String, ClassLoader> classLoaders = new HashMap();
     private static ClassLoader classLoader;
 
-    /**
-     * @component
-     */
+    @Component
     private ArtifactMetadataSource artifactMetadataSource;
 
     public abstract void execute() throws MojoExecutionException, MojoFailureException;

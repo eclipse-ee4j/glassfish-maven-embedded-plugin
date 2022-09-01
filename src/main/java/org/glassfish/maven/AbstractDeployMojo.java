@@ -18,6 +18,7 @@ package org.glassfish.maven;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.Parameter;
 
 import java.io.File;
 import java.lang.reflect.Method;
@@ -33,87 +34,77 @@ public abstract class AbstractDeployMojo extends AbstractServerMojo {
      * <b><i>Note : &lt;deploymentParams&gt; configuration can be used instead of this.</i></b>
      * <p/>
      * Name of the application.
-     *
-     * @parameter expression="${name}" default-value="myapp"
      */
+    @Parameter(property = "name", defaultValue = "myapp")
     protected String name;
 
     /**
      * <b><i>Note : &lt;deploymentParams&gt; configuration can be used instead of this.</i></b>
      * <p/>
      * Context root of the web application.
-     *
-     * @parameter expression="${contextRoot}"
      */
+    @Parameter(property = "contextRoot")
     protected String contextRoot;
 
     /**
      * <b><i>Note : &lt;deploymentParams&gt; configuration can be used instead of this.</i></b>
      * <p/>
      * Specify whether the JSPs should be precompiled during deployment.
-     *
-     * @parameter expression="${precompileJsp}"
      */
+    @Parameter(property = "precompileJsp")
     protected Boolean precompileJsp;
 
     /**
      * <b><i>Note : &lt;deploymentParams&gt; configuration can be used instead of this.</i></b>
      * <p/>
      * Name of the database vendor.
-     *
-     * @parameter expression="${dbVendorName}"
      */
+    @Parameter(property = "dbVendorName")
     protected String dbVendorName;
 
     /**
      * <b><i>Note : &lt;deploymentParams&gt; configuration can be used instead of this.</i></b>
      * <p/>
      * Specify whether the tables should be created during deployment.
-     *
-     * @parameter expression="${createTables}"
      */
+    @Parameter(property = "createTables")
     protected Boolean createTables;
 
     /**
      * <b><i>Note : &lt;deploymentParams&gt; configuration can be used instead of this.</i></b>
      * <p/>
      * A comma-separated list of library JAR files.
-     *
-     * @parameter expression="${libraries}"
      */
+    @Parameter(property = "libraries")
     protected String libraries;
     /**
      * Build directory of the maven project. Automatically injected by
      * Maven framework.
-     *
-     * @parameter expression="${project.build.directory}"
      */
+    @Parameter(property = "project.build.directory")
     String buildDirectory;
 
     /**
      * Base directory of the maven project. Automatically injected by
      * Maven framework.
-     *
-     * @parameter expression="${basedir}"
      */
+    @Parameter(property = "basedir")
     String baseDirectory;
 
     /**
      * Name of the file to be deployed to Embedded GlassFish.
      * <p/>
      * Use app configuration instead of this.
-     *
-     * @parameter expression="${project.build.finalName}"
      */
+    @Parameter(property = "project.build.finalName")
     String fileName;
 
     /**
      * Location of the application to be deployed.
      * <p/>
      * Location could be a Java EE file archive or a directory.
-     *
-     * @parameter expression="${app}"
      */
+    @Parameter(property = "app")
     protected String app;
 
     /**
@@ -132,9 +123,8 @@ public abstract class AbstractDeployMojo extends AbstractServerMojo {
      *      &lt;param&gt;--precompilejsp=true&lt;/param&gt;
      * &lt;/deploymentParams&gt;
      * </pre>
-     *
-     * @parameter expression="${deploymentParams}"
      */
+    @Parameter(property = "deploymentParams")
     protected String[] deploymentParams;
 
     /**
@@ -150,9 +140,8 @@ public abstract class AbstractDeployMojo extends AbstractServerMojo {
      *      &lt;param&gt;--droptables=true&lt;/param&gt;
      * &lt;/undeploymentParams&gt;
      * </pre>
-     *
-     * @parameter expression="${undeploymentParams}"
      */
+    @Parameter(property = "undeploymentParams")
     protected String[] undeploymentParams;
 
     public abstract void execute() throws MojoExecutionException, MojoFailureException;

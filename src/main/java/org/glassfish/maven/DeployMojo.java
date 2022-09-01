@@ -18,6 +18,8 @@ package org.glassfish.maven;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
 
 import java.io.File;
 
@@ -29,9 +31,8 @@ import java.io.File;
  * the deployment parameters can be specified in 'deploymentParams' configuration.
  *
  * @author bhavanishankar@dev.java.net
- * @goal deploy
- * @phase pre-integration-test
  */
+@Mojo(name = "deploy", defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class DeployMojo extends AbstractDeployMojo {
 
     public void execute() throws MojoExecutionException, MojoFailureException {
