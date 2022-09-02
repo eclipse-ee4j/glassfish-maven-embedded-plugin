@@ -111,7 +111,9 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.4.1</version>
                 <configuration>
-                    <additionalparam>-Xdoclint:none</additionalparam>
+                    <additionalOptions>
+                        <option>-Xdoclint:none</option>
+                    </additionalOptions>
                 </configuration>
                 <executions>
                   <execution>
