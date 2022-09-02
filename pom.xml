@@ -153,7 +153,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
-            <artifactId>maven-project</artifactId>
+            <artifactId>maven-compat</artifactId>
             <version>2.2.1</version>
         </dependency>
         <dependency>
