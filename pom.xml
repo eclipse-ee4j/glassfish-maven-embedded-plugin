@@ -32,6 +32,14 @@
     <name>Maven Embedded GlassFish Plugin</name>
     <description>Maven Embedded GlassFish Plugin</description>
     <url>https://projects.eclipse.org/projects/ee4j.glassfish</url>
+
+    <properties>
+        <target.maven.version>3.6.3</target.maven.version>
+    </properties>
+
+    <prerequisites>
+        <maven>${target.maven.version}</maven>
+    </prerequisites>
     
     <contributors>
         <contributor>
@@ -149,12 +157,12 @@
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-plugin-api</artifactId>
-            <version>2.2.1</version>
+            <version>${target.maven.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-compat</artifactId>
-            <version>2.2.1</version>
+            <version>${target.maven.version}</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish.main.common</groupId>
