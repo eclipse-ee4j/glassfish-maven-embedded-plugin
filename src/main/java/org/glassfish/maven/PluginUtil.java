@@ -31,7 +31,7 @@ import java.util.logging.Logger;
  */
 public class PluginUtil {
 
-    private static final Logger logger = Logger.getLogger("maven-embedded-glassfish-plugin");
+    private static final Logger logger = Logger.getLogger("embedded-glassfish-maven-plugin");
 
     static {
         logger.setLevel(Level.FINE);
