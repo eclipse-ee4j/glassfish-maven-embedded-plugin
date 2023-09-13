@@ -94,7 +94,8 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * <p/>
      * This setting is ignored when configFile option is used.
      * <p/>
-     *
+     * If no ports and no port configuration is defined, the value of 8080 is used as a default. If you want to disable
+     * all HTTP listeners, specify an empty &lt;ports&gt; configuration.
      */
     @Parameter(property = "port", defaultValue = "-1")
     protected int port;
@@ -135,7 +136,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * <pre>
      * &lt;ports&gt;
      *      &lt;http-listener&gt;8080&lt;/http-listener&gt;
-     *      &lt;https-listener&gt;8181&lt;/http-listener&gt;
+     *      &lt;https-listener&gt;8181&lt;/https-listener&gt;
      * &lt;/ports&gt;
      * </pre>
      * <p/>
@@ -417,6 +418,9 @@ public abstract class AbstractServerMojo extends AbstractMojo {
             props.setProperty("org.glassfish.embeddable.configFileReadOnly", "false");
         }
 
+        if (ports == null && port == -1) {
+            port = 8080;
+        }
         if (port != -1 && configFile == null) {
             String httpListener = String.format(NETWORK_LISTENER_KEY, "http-listener");
             props.setProperty(httpListener + ".port", String.valueOf(port));
