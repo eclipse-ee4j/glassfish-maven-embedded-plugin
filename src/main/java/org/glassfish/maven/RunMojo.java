@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2023 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -13,7 +14,6 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  */
-
 package org.glassfish.maven;
 
 import org.apache.maven.model.Plugin;
@@ -33,17 +33,16 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- * This Mojo starts Embedded GlassFish, executes all the 'admin' goals,
- * and executes all 'deploy' goals, and waits for user's input.
+ * This Mojo starts Embedded GlassFish, executes all the 'admin' goals, and executes all 'deploy' goals, and waits for
+ * user's input.
  * <p/>
  * <p/>
  * While it is waiting for user's input, the user can access the deployed applications.
  * <p/>
- * Upon user's input, it undeploys all the applications that were
- * defined in all 'deploy' goals, and redeploys all of them.
+ * Upon user's input, it undeploys all the applications that were defined in all 'deploy' goals, and redeploys all of
+ * them.
  * <p/>
- * If user enters 'X' in their console for this Mojo will stop Embedded GlassFish and
- * will exit.
+ * If user enters 'X' in their console for this Mojo will stop Embedded GlassFish and will exit.
  *
  * @author bhavanishankar@dev.java.net
  */
@@ -97,8 +96,9 @@ public class RunMojo extends AbstractDeployMojo {
                 /**
                  * Exit from embedded-glassfish:run if 'X' is entered.
                  */
-                if (str.equalsIgnoreCase("X"))
+                if (str.equalsIgnoreCase("X")) {
                     break;
+                }
             }
             /**
              * Stop GlassFish server
@@ -107,7 +107,6 @@ public class RunMojo extends AbstractDeployMojo {
         } catch (Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
-
 
     }
 
@@ -132,7 +131,7 @@ public class RunMojo extends AbstractDeployMojo {
     // Retrieve all the "deploy" goals defined in the plugin.
     private List<Properties> getDeploymentConfigurations() {
 
-        List<Properties> deployments = new ArrayList<Properties>();
+        List<Properties> deployments = new ArrayList<>();
 
         Plugin embeddedPlugin = getPlugin("embedded-glassfish-maven-plugin");
 
@@ -141,6 +140,13 @@ public class RunMojo extends AbstractDeployMojo {
         for (PluginExecution pluginExecution : deployGoals) {
             Properties configurations = getConfigurations(
                     pluginExecution, embeddedPlugin, "deploymentParams");
+            deployments.add(configurations);
+        }
+
+        /* If no deploy goal specified, add a default deployment */
+        if (deployGoals.isEmpty()) {
+            Properties configurations = getConfigurations(
+                    null, embeddedPlugin, "deploymentParams");
             deployments.add(configurations);
         }
 
@@ -166,13 +172,13 @@ public class RunMojo extends AbstractDeployMojo {
     /**
      * Get all the goals by given name in the plugin.
      *
-     * @param plugin   Plugin to which the goal belongs.
+     * @param plugin Plugin to which the goal belongs.
      * @param goalName Name of the goals to be retrieved from the plugin
      * @return List of goals by given name in the given plugin
      */
     private List<PluginExecution> getGoals(Plugin plugin, String goalName) {
         List executions = plugin.getExecutions();
-        List<PluginExecution> goals = new ArrayList<PluginExecution>();
+        List<PluginExecution> goals = new ArrayList<>();
         for (Object execution : executions) {
             PluginExecution pe = (PluginExecution) execution;
             List allGoals = pe.getGoals();
@@ -186,28 +192,37 @@ public class RunMojo extends AbstractDeployMojo {
     }
 
     private Properties getConfigurations(PluginExecution goal, Plugin plugin,
-                                         String... nonLeafNodeNames) {
+            String... nonLeafNodeNames) {
         Xpp3Dom config = (Xpp3Dom) plugin.getConfiguration();
 
+        Properties configurations = new Properties();
+
         // retrieve configuration options at the plugin level.
-        Properties configurations = getConfigurations(config);
-        if (nonLeafNodeNames != null) {
-            for (String nonLeafNodeName : nonLeafNodeNames) {
-                configurations.put(nonLeafNodeName, getConfigurationsAsList(
-                        config.getChild(nonLeafNodeName)));
+        if (config != null) {
+            configurations.putAll(getConfigurations(config));
+            if (nonLeafNodeNames != null) {
+                for (String nonLeafNodeName : nonLeafNodeNames) {
+                    configurations.put(nonLeafNodeName, getConfigurationsAsList(
+                            config.getChild(nonLeafNodeName)));
+                }
             }
         }
 
         // retrieve configuration options at goal level.
-        config = (Xpp3Dom) goal.getConfiguration();
-        if (config != null) {
-            configurations.putAll(getConfigurations(config));
-            for (String nonLeafNodeName : nonLeafNodeNames) {
-                List<String> value = (List<String>) configurations.get(nonLeafNodeName);
-                value.addAll(getConfigurationsAsList(config.getChild(nonLeafNodeName)));
-                configurations.put(nonLeafNodeName, value);
+        if (goal != null) {
+            config = (Xpp3Dom) goal.getConfiguration();
+            if (config != null) {
+                configurations.putAll(getConfigurations(config));
+                if (nonLeafNodeNames != null) {
+                    for (String nonLeafNodeName : nonLeafNodeNames) {
+                        List<String> value = (List<String>) configurations.get(nonLeafNodeName);
+                        value.addAll(getConfigurationsAsList(config.getChild(nonLeafNodeName)));
+                        configurations.put(nonLeafNodeName, value);
+                    }
+                }
             }
         }
+
         return configurations;
     }
 
@@ -244,7 +259,7 @@ public class RunMojo extends AbstractDeployMojo {
      * @return List of configurations.
      */
     private List<String> getConfigurationsAsList(Xpp3Dom node) {
-        List<String> configurations = new ArrayList<String>();
+        List<String> configurations = new ArrayList<>();
         if (node != null) {
             Xpp3Dom[] configs = node.getChildren();
             if (configs != null) {
@@ -259,12 +274,11 @@ public class RunMojo extends AbstractDeployMojo {
     }
 
     public void runCommand(String serverId, ClassLoader cl,
-                           String[] commandLines) throws Exception {
+            String[] commandLines) throws Exception {
         Class clazz = cl.loadClass(PluginUtil.class.getName());
         Method m = clazz.getMethod("runCommand", new Class[]{
-                String.class, String[].class});
+            String.class, String[].class});
         m.invoke(null, new Object[]{serverId, commandLines});
     }
-
 
 }
