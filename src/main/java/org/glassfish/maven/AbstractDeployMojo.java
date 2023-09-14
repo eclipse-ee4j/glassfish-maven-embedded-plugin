@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2023 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -13,7 +14,6 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  */
-
 package org.glassfish.maven;
 
 import org.apache.maven.plugin.MojoExecutionException;
@@ -30,6 +30,7 @@ import java.util.Properties;
  * @author bhavanishankar@dev.java.net
  */
 public abstract class AbstractDeployMojo extends AbstractServerMojo {
+
     /**
      * <b><i>Note : &lt;deploymentParams&gt; configuration can be used instead of this.</i></b>
      * <p/>
@@ -78,15 +79,13 @@ public abstract class AbstractDeployMojo extends AbstractServerMojo {
     @Parameter(property = "libraries")
     protected String libraries;
     /**
-     * Build directory of the maven project. Automatically injected by
-     * Maven framework.
+     * Build directory of the maven project. Automatically injected by Maven framework.
      */
     @Parameter(property = "project.build.directory")
     String buildDirectory;
 
     /**
-     * Base directory of the maven project. Automatically injected by
-     * Maven framework.
+     * Base directory of the maven project. Automatically injected by Maven framework.
      */
     @Parameter(property = "basedir")
     String baseDirectory;
@@ -110,8 +109,8 @@ public abstract class AbstractDeployMojo extends AbstractServerMojo {
     /**
      * Deployment parameters to be used while deploying the application to Embedded GlassFish.
      * <p/>
-     * The deployment parameters are same as how they would be passed to
-     * 'asadmin deploy' command while using standalone GlassFish.
+     * The deployment parameters are same as how they would be passed to 'asadmin deploy' command while using standalone
+     * GlassFish.
      * <p/>
      * For example:
      * <pre>
@@ -128,11 +127,10 @@ public abstract class AbstractDeployMojo extends AbstractServerMojo {
     protected String[] deploymentParams;
 
     /**
-     * Undeployment parameters to be used while undeploying the application
-     * from Embedded GlassFish.
+     * Undeployment parameters to be used while undeploying the application from Embedded GlassFish.
      * <p/>
-     * The undeployment parameters are same as how they would be passed to
-     * 'asadmin undeploy' command while using standalone GlassFish.
+     * The undeployment parameters are same as how they would be passed to 'asadmin undeploy' command while using
+     * standalone GlassFish.
      * <p/>
      * For example:
      * <pre>
@@ -173,8 +171,10 @@ public abstract class AbstractDeployMojo extends AbstractServerMojo {
         set(deployParams, "--createtables", goalConfiguration.getProperty("createTables"));
         set(deployParams, "--libraries", goalConfiguration.getProperty("libraries"));
         List<String> deploymentParams = (List<String>) goalConfiguration.get("deploymentParams");
-        for (String p : deploymentParams) {
-            deployParams.add(p);
+        if (deploymentParams != null) {
+            for (String p : deploymentParams) {
+                deployParams.add(p);
+            }
         }
         return deployParams.toArray(new String[0]);
     }
@@ -190,11 +190,10 @@ public abstract class AbstractDeployMojo extends AbstractServerMojo {
     }
 
     /**
-     * Add the paramName:paramValue key-value pair into params, if both
-     * paramName and paramValue are non null.
+     * Add the paramName:paramValue key-value pair into params, if both paramName and paramValue are non null.
      *
-     * @param params     Map where the paramName:Value to be added
-     * @param paramName  Name of the parameter
+     * @param params Map where the paramName:Value to be added
+     * @param paramName Name of the parameter
      * @param paramValue Value of the parameter.
      */
     void set(List<String> params, String paramName, Object paramValue) {
@@ -214,25 +213,25 @@ public abstract class AbstractDeployMojo extends AbstractServerMojo {
             return buildDirectory + File.separator + fileName + ".war"; // TODO :: use pom.xml's packaging type.
         }
     }
-    
+
     protected void doDeploy(String serverId, ClassLoader cl, Properties bootstrapProps,
-                            Properties glassfishProperties,
-                            File archive, String[] deploymentParams) throws Exception {
+            Properties glassfishProperties,
+            File archive, String[] deploymentParams) throws Exception {
         Class clazz = cl.loadClass(PluginUtil.class.getName());
         Method m = clazz.getMethod("doDeploy", new Class[]{String.class,
-                ClassLoader.class, Properties.class, Properties.class, File.class, String[].class});
+            ClassLoader.class, Properties.class, Properties.class, File.class, String[].class});
         m.invoke(null, new Object[]{serverId, cl, bootstrapProps, glassfishProperties,
-                archive, deploymentParams});
+            archive, deploymentParams});
     }
 
     protected void doUndeploy(String serverId, ClassLoader cl, Properties bootstrapProps,
-                              Properties glassfishProperties,
-                              String appName, String[] undeploymentParams) throws Exception {
+            Properties glassfishProperties,
+            String appName, String[] undeploymentParams) throws Exception {
         Class clazz = cl.loadClass(PluginUtil.class.getName());
         Method m = clazz.getMethod("doUndeploy", new Class[]{String.class,
-                ClassLoader.class, Properties.class, Properties.class, String.class, String[].class});
+            ClassLoader.class, Properties.class, Properties.class, String.class, String[].class});
         m.invoke(null, new Object[]{serverId, cl, bootstrapProps, glassfishProperties,
-                appName, undeploymentParams});
+            appName, undeploymentParams});
     }
 
 }
