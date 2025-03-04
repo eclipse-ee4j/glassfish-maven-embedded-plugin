@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.glassfish.embedded.tester</groupId>
     <artifactId>tester-parent</artifactId>
-    <version>7.0</version>
+    <version>7.1-SNAPSHOT</version>
   </parent>
   <artifactId>deploy-tester</artifactId>
   <packaging>pom</packaging>
