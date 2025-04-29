@@ -35,6 +35,8 @@
 
     <properties>
         <target.maven.version>3.6.3</target.maven.version>
+        <invoker.streamLogsOnFailures>true</invoker.streamLogsOnFailures>
+        <tested.glassfish.version>7.0.23</tested.glassfish.version>
     </properties>
 
     <prerequisites>
@@ -107,6 +109,10 @@
                     <artifactId>maven-release-plugin</artifactId>
                     <version>3.1.1</version>
                 </plugin>
+                <plugin>
+                    <artifactId>maven-invoker-plugin</artifactId>
+                    <version>3.9.0</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -122,6 +128,26 @@
                 <artifactId>maven-plugin-plugin</artifactId>
                 <configuration>
                     <goalPrefix>embedded-glassfish</goalPrefix>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-invoker-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>integration-test</id>
+                        <goals>
+                            <goal>install</goal>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <localRepositoryPath>${project.build.directory}/local-repo</localRepositoryPath>
+                    <skipInstallation>${skipTests}</skipInstallation>
+                    <skipInvocation>${skipTests}</skipInvocation>
+                    <scriptVariables>
+                        <glassfishVersion>${tested.glassfish.version}</glassfishVersion>
+                    </scriptVariables>
                 </configuration>
             </plugin>
             <plugin>
