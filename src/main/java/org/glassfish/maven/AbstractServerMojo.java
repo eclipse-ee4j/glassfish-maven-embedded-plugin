@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Contributors to the Eclipse Foundation.
+ * Copyright (c) 2023,2025 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -69,7 +69,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
 
     private static final String GF_API_GROUP_ID = "org.glassfish.main.common";
     private static final String GF_API_ARTIFACT_ID = "simple-glassfish-api";
-    private static final String DEFAULT_GF_VERSION = "4.0";
+    private static final String DEFAULT_GF_VERSION = "7.0.0";
     private static String gfVersion;
 
     /*******************************************
@@ -227,15 +227,21 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     @Parameter(property = "autoDelete", defaultValue = "true")
     protected Boolean autoDelete;
 
-    /*===============================================
-     * End of parameters supplied by configuration
-     ***********************************************/
-
     /**
      * @deprecated This is a deprecated and unused configuration. Likely to be removed in the next version of the plugin.
      */
     @Parameter(property = "containerType", defaultValue = "all")
     protected String containerType;
+
+    /**
+     * Version of Embedded GlassFish to download if Embedded GlassFish dependency is not provided
+     */
+    @Parameter
+    protected String glassfishVersion;
+
+    /*===============================================
+     * End of parameters supplied by configuration
+     ***********************************************/
 
     /***************************************
      * Dependencies injected by Maven
@@ -371,6 +377,9 @@ public abstract class AbstractServerMojo extends AbstractMojo {
 
     // GlassFish should be of same version as simple-glassfish-api as defined in plugin's pom.
     private String getGlassfishVersion(Artifact gfMvnPlugin) throws Exception {
+        if (glassfishVersion != null) {
+            return glassfishVersion;
+        }
         if (gfVersion != null) {
             return gfVersion;
         }
