@@ -32,15 +32,9 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: ${{ matrix.java_version }}
-    - name: Maven Build
+    - name: Maven Build & Test
       run: |
         mvn --show-version \
             --no-transfer-progress \
             --activate-profiles staging \
-            install
-    - name: Run test
-      run: |
-        mvn --no-transfer-progress \
-            --activate-profiles staging \
-            --file src/test \
             install
