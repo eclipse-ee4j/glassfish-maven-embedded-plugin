@@ -375,10 +375,38 @@ public abstract class AbstractServerMojo extends AbstractMojo {
         return null;
     }
 
-    // GlassFish should be of same version as simple-glassfish-api as defined in plugin's pom.
+    private Dependency getDependencyManagementInfoForEmbeddedAll() {
+        if (project.getDependencyManagement() != null) {
+            for (Dependency dependency : project.getDependencyManagement().getDependencies()) {
+                if (EMBEDDED_GROUP_ID.equals(dependency.getGroupId())) {
+                    if (dependency.getArtifactId().equals(EMBEDDED_ALL)) {
+                        return dependency;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Determines GlassFish version from Maven configuration:
+     * <ol>
+     * <li>If glassfishVersion parameter defined, return it</li>
+     * <li>If Embedded All depenendy defined in dependency management, return its version</li>
+     * <li>Returns the version of simple-glassfish-api as defined in plugin's pom - the version this plugin was built against</li>
+     * </ol>
+     *
+     * @param gfMvnPlugin
+     * @return Determined version of Embedded GlassFish All artifact
+     * @throws Exception
+     */
     private String getGlassfishVersion(Artifact gfMvnPlugin) throws Exception {
         if (glassfishVersion != null) {
             return glassfishVersion;
+        }
+        Dependency dependencyManagementInfo = getDependencyManagementInfoForEmbeddedAll();
+        if (dependencyManagementInfo != null) {
+            return dependencyManagementInfo.getVersion();
         }
         if (gfVersion != null) {
             return gfVersion;
