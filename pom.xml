@@ -34,7 +34,7 @@
     <url>https://projects.eclipse.org/projects/ee4j.glassfish</url>
 
     <properties>
-        <target.maven.version>3.6.3</target.maven.version>
+        <target.maven.version>3.9.10</target.maven.version>
     </properties>
 
     <prerequisites>
