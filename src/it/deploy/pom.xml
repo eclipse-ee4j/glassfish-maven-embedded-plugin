@@ -37,10 +37,20 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <phase>test</phase>
+                        <phase>pre-integration-test</phase>
                         <goals>
                             <goal>start</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <phase>integration-test</phase>
+                        <goals>
                             <goal>deploy</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <phase>post-integration-test</phase>
+                        <goals>
                             <goal>stop</goal>
                         </goals>
                     </execution>
