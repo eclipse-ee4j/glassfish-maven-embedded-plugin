@@ -44,16 +44,23 @@
                 <version>@project.version@</version>
                 <executions>
                     <execution>
-                        <phase>test</phase>
+                        <id>pre-integration</id>
+                        <phase>pre-integration-test</phase>
                         <goals>
                             <goal>start</goal>
-                            <goal>stop</goal>
                         </goals>
                         <configuration>
                             <port>8081</port>
                             <!-- Just to test that this version is ignored -->
                             <glassfishVersion>7.0.0</glassfishVersion>
                         </configuration>
+                    </execution>
+                    <execution>
+                        <id>post-integration</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
                     </execution>
                 </executions>
                 <dependencies>

@@ -32,15 +32,22 @@
                 <version>@project.version@</version>
                 <executions>
                     <execution>
-                        <phase>test</phase>
+                        <id>pre-integration</id>
+                        <phase>pre-integration-test</phase>
                         <goals>
                             <goal>start</goal>
-                            <goal>stop</goal>
                         </goals>
                         <configuration>
                             <port>8081</port>
                             <glassfishVersion>@tested.glassfish.version@</glassfishVersion>
                         </configuration>
+                    </execution>
+                    <execution>
+                        <id>post-integration</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

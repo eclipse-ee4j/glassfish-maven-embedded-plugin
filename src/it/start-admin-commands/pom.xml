@@ -32,11 +32,17 @@
                 <version>@project.version@</version>
                 <executions>
                     <execution>
-                        <phase>test</phase>
+                        <id>pre-integration</id>
+                        <phase>pre-integration-test</phase>
                         <goals>
                             <goal>start</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>integration-test</id>
+                        <phase>integration-test</phase>
+                        <goals>
                             <goal>admin</goal>
-                            <goal>stop</goal>
                         </goals>
                         <configuration>
                             <port>8081</port>
@@ -45,6 +51,13 @@
                                 <command>set configs.config.server-config.thread-pools.thread-pool.http-thread-pool.max-thread-pool-size=200</command>
                             </commands>
                         </configuration>
+                    </execution>
+                    <execution>
+                        <id>post-integration</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

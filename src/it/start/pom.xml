@@ -32,14 +32,21 @@
                 <version>@project.version@</version>
                 <executions>
                     <execution>
-                        <phase>test</phase>
+                        <id>integration</id>
+                        <phase>integration-test</phase>
                         <goals>
                             <goal>start</goal>
-                            <goal>stop</goal>
                         </goals>
                         <configuration>
                             <port>8081</port>
                         </configuration>
+                    </execution>
+                    <execution>
+                        <id>post-integration</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
