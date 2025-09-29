@@ -36,7 +36,7 @@
     <properties>
         <target.maven.version>3.6.3</target.maven.version>
         <invoker.streamLogsOnFailures>true</invoker.streamLogsOnFailures>
-        <tested.glassfish.version>7.0.23</tested.glassfish.version>
+        <tested.glassfish.version>7.0.25</tested.glassfish.version>
     </properties>
 
     <prerequisites>
