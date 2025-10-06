@@ -231,12 +231,13 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * @deprecated This is a deprecated and unused configuration. Likely to be removed in the next version of the plugin.
      */
     @Parameter(property = "containerType", defaultValue = "all")
+    @Deprecated
     protected String containerType;
 
     /**
      * Version of Embedded GlassFish to download if Embedded GlassFish dependency is not provided
      */
-    @Parameter
+    @Parameter(property = "glassfish.version", alias = "glassfish.version")
     protected String glassfishVersion;
 
     /*===============================================

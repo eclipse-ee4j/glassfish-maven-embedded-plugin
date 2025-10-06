@@ -39,7 +39,6 @@
                         </goals>
                         <configuration>
                             <port>8081</port>
-                            <glassfish.version>@tested.glassfish.version@</glassfish.version>
                         </configuration>
                     </execution>
                     <execution>

@@ -7,7 +7,7 @@ A Maven plugin for managing Embedded GlassFish server instances during the build
 Run your project's main artifact on Embedded GlassFish directly from command line without modifying your `pom.xml`:
 
 ```bash
-mvn org.glassfish.embedded:embedded-glassfish-maven-plugin:7.1-SNAPSHOT:run -DglassfishVersion=7.0.25
+mvn org.glassfish.embedded:embedded-glassfish-maven-plugin:7.1-SNAPSHOT:run -Dglassfish.version=7.0.25
 ```
 
 Or add the plugin to your `pom.xml`:
@@ -18,7 +18,7 @@ Or add the plugin to your `pom.xml`:
     <artifactId>embedded-glassfish-maven-plugin</artifactId>
     <version>7.1-SNAPSHOT</version>
     <configuration>
-        <glassfishVersion>7.0.25</glassfishVersion>
+        <glassfish.version>7.0.25</glassfish.version>
     </configuration>
 </plugin>
 ```
@@ -154,7 +154,7 @@ mvn embedded-glassfish:admin -Dcommands="set server.monitoring-service.module-mo
 
 ### Server Configuration
 - `configFile` - Custom domain configuration file
-- `glassfishVersion` - GlassFish version to use
+- `glassfish.version` - GlassFish version to use
 - `port` - HTTP port number (default: 8080)
 - `ports` - Map of port configurations
 - `serverID` - Server identifier (default: "maven")
