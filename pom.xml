@@ -35,18 +35,20 @@
 
     <properties>
         <target.maven.version>3.6.3</target.maven.version>
+        <invoker.streamLogsOnFailures>true</invoker.streamLogsOnFailures>
+        <tested.glassfish.version>7.0.25</tested.glassfish.version>
     </properties>
 
     <prerequisites>
         <maven>${target.maven.version}</maven>
     </prerequisites>
-    
+
     <contributors>
         <contributor>
             <name>Bhavanishankar</name>
         </contributor>
     </contributors>
-    
+
     <developers>
         <developer>
             <id>yaminikb</id>
@@ -58,18 +60,18 @@
 
     <mailingLists>
         <mailingList>
-          <name>Glassfish dev mailing list</name>
-          <post>glassfish-dev@eclipse.org</post>
-          <subscribe>https://dev.eclipse.org/mailman/listinfo/glassfish-dev</subscribe>
-          <unsubscribe>https://dev.eclipse.org/mailman/listinfo/glassfish-dev</unsubscribe>
-          <archive>https://dev.eclipse.org/mhonarc/lists/glassfish-dev</archive>
+            <name>Glassfish dev mailing list</name>
+            <post>glassfish-dev@eclipse.org</post>
+            <subscribe>https://dev.eclipse.org/mailman/listinfo/glassfish-dev</subscribe>
+            <unsubscribe>https://dev.eclipse.org/mailman/listinfo/glassfish-dev</unsubscribe>
+            <archive>https://dev.eclipse.org/mhonarc/lists/glassfish-dev</archive>
         </mailingList>
     </mailingLists>
 
     <issueManagement>
         <system>github</system>
         <url>https://github.com/eclipse-ee4j/glassfish-maven-embedded-plugin/issues</url>
-    </issueManagement>    
+    </issueManagement>
 
     <scm>
         <connection>scm:git:https://github.com/eclipse-ee4j/glassfish-maven-embedded-plugin.git</connection>
@@ -80,11 +82,43 @@
 
     <build>
         <defaultGoal>install</defaultGoal>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.14.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-plugin-plugin</artifactId>
+                    <version>3.15.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.3.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.12.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>3.1.1</version>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-invoker-plugin</artifactId>
+                    <version>3.9.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.1</version>
                 <configuration>
                     <release>11</release>
                 </configuration>
@@ -92,55 +126,71 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-plugin-plugin</artifactId>
-                <version>3.15.1</version>
                 <configuration>
                     <goalPrefix>embedded-glassfish</goalPrefix>
                 </configuration>
             </plugin>
             <plugin>
+                <artifactId>maven-invoker-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>integration-test</id>
+                        <goals>
+                            <goal>install</goal>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <localRepositoryPath>${project.build.directory}/local-repo</localRepositoryPath>
+                    <skipInstallation>${skipTests}</skipInstallation>
+                    <skipInvocation>${skipTests}</skipInvocation>
+                    <scriptVariables>
+                        <glassfishVersion>${tested.glassfish.version}</glassfishVersion>
+                    </scriptVariables>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>3.3.1</version>
                 <configuration>
                     <includePom>true</includePom>
                 </configuration>
                 <executions>
                     <execution>
-                       <id>attach-sources</id>
-                       <goals>
-                           <goal>jar-no-fork</goal> 
-                       </goals>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.12.0</version>
                 <configuration>
                     <additionalOptions>
                         <option>-Xdoclint:none</option>
                     </additionalOptions>
                 </configuration>
                 <executions>
-                  <execution>
-                    <id>attach-javadocs</id>
-                      <goals>
-                          <goal>jar</goal>
-                      </goals>
-                  </execution>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>                           
-                <artifactId>maven-release-plugin</artifactId>                         
-                 <version>3.1.1</version>
-                <configuration>                                                       
-                    <mavenExecutorId>forked-path</mavenExecutorId>                
-                    <useReleaseProfile>false</useReleaseProfile>                  
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <configuration>
+                    <mavenExecutorId>forked-path</mavenExecutorId>
+                    <useReleaseProfile>false</useReleaseProfile>
                     <tagNameFormat>@{project.version}</tagNameFormat>
                     <arguments>${release.arguments}</arguments>
-                </configuration>                                                      
+                </configuration>
                 <dependencies>
                     <dependency>
                         <groupId>org.apache.maven.scm</groupId>
@@ -148,7 +198,7 @@
                         <version>2.2.1</version>
                     </dependency>
                 </dependencies>
-            </plugin>                    
+            </plugin>
         </plugins>
     </build>
 
@@ -184,7 +234,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-plugin-plugin</artifactId>
-                <version>3.15.1</version>
             </plugin>
         </plugins>
     </reporting>
@@ -201,5 +250,5 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-    
+
 </project>

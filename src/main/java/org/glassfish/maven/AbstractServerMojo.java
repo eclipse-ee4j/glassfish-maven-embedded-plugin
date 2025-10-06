@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Contributors to the Eclipse Foundation.
+ * Copyright (c) 2023,2025 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -69,15 +69,12 @@ public abstract class AbstractServerMojo extends AbstractMojo {
 
     private static final String GF_API_GROUP_ID = "org.glassfish.main.common";
     private static final String GF_API_ARTIFACT_ID = "simple-glassfish-api";
-    private static final String DEFAULT_GF_VERSION = "4.0";
+    private static final String DEFAULT_GF_VERSION = "7.0.0";
     private static String gfVersion;
 
-    /**
-     * The remote repositories where artifacts are located.
-     * This is automatically injected by the Maven framework.
-     */
-    @Parameter(property = "project.remoteArtifactRepositories")
-    protected List remoteRepositories;
+    /*******************************************
+     * Parameters supplied by configuration
+     ******************************************/
 
     /**
      * Identifier of the Embedded GlassFish server.
@@ -231,6 +228,40 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     protected Boolean autoDelete;
 
     /**
+     * @deprecated This is a deprecated and unused configuration. Likely to be removed in the next version of the plugin.
+     */
+    @Parameter(property = "containerType", defaultValue = "all")
+    @Deprecated
+    protected String containerType;
+
+    /**
+     * Version of Embedded GlassFish to download if Embedded GlassFish dependency is not provided
+     */
+    @Parameter(property = "glassfish.version", alias = "glassfish.version")
+    protected String glassfishVersion;
+
+    /*===============================================
+     * End of parameters supplied by configuration
+     ***********************************************/
+
+    /***************************************
+     * Dependencies injected by Maven
+     ***************************************/
+
+    /**
+     * This is automatically injected by the Maven framework.
+     */
+    @Parameter(property = "localRepository", required = true)
+    protected ArtifactRepository localRepository;
+
+    /**
+     * The remote repositories where artifacts are located.
+     * This is automatically injected by the Maven framework.
+     */
+    @Parameter(property = "project.remoteArtifactRepositories")
+    protected List remoteRepositories;
+
+    /**
      * The maven project.
      */
     @Parameter(property = "project", required = true, readonly = true)
@@ -245,12 +276,6 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     @Component
     protected MavenProjectBuilder projectBuilder;
 
-    /**
-     * This is automatically injected by the Maven framework.
-     */
-    @Parameter(property = "localRepository", required = true)
-    protected ArtifactRepository localRepository;
-
     @Component
     protected ArtifactResolver resolver;
 
@@ -260,20 +285,16 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     @Component
     protected ArtifactFactory factory;
 
-    /**
-     * @deprecated This is a deprecated and unused configuration. Likely to be removed in the next version of the plugin.
-     */
-    @Parameter(property = "containerType", defaultValue = "all")
-    protected String containerType;
+    @Component
+    private ArtifactMetadataSource artifactMetadataSource;
 
-//    protected GlassFish gf;
+    /*=======================================
+     * End of dependencies injected by Maven
+     ***************************************/
 
     // HashMap with Key=serverId, Value=Bootstrap ClassLoader
     protected static HashMap<String, ClassLoader> classLoaders = new HashMap();
     private static ClassLoader classLoader;
-
-    @Component
-    private ArtifactMetadataSource artifactMetadataSource;
 
     public abstract void execute() throws MojoExecutionException, MojoFailureException;
 
@@ -355,8 +376,39 @@ public abstract class AbstractServerMojo extends AbstractMojo {
         return null;
     }
 
-    // GlassFish should be of same version as simple-glassfish-api as defined in plugin's pom.
+    private Dependency getDependencyManagementInfoForEmbeddedAll() {
+        if (project.getDependencyManagement() != null) {
+            for (Dependency dependency : project.getDependencyManagement().getDependencies()) {
+                if (EMBEDDED_GROUP_ID.equals(dependency.getGroupId())) {
+                    if (dependency.getArtifactId().equals(EMBEDDED_ALL)) {
+                        return dependency;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Determines GlassFish version from Maven configuration:
+     * <ol>
+     * <li>If glassfishVersion parameter defined, return it</li>
+     * <li>If Embedded All depenendy defined in dependency management, return its version</li>
+     * <li>Returns the version of simple-glassfish-api as defined in plugin's pom - the version this plugin was built against</li>
+     * </ol>
+     *
+     * @param gfMvnPlugin
+     * @return Determined version of Embedded GlassFish All artifact
+     * @throws Exception
+     */
     private String getGlassfishVersion(Artifact gfMvnPlugin) throws Exception {
+        if (glassfishVersion != null) {
+            return glassfishVersion;
+        }
+        Dependency dependencyManagementInfo = getDependencyManagementInfoForEmbeddedAll();
+        if (dependencyManagementInfo != null) {
+            return dependencyManagementInfo.getVersion();
+        }
         if (gfVersion != null) {
             return gfVersion;
         }
