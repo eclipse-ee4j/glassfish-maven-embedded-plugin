@@ -7,7 +7,7 @@ A Maven plugin for managing Embedded GlassFish server instances during the build
 Run your project's main artifact on Embedded GlassFish directly from command line without modifying your `pom.xml`:
 
 ```bash
-mvn org.glassfish.embedded:embedded-glassfish-maven-plugin:7.1-SNAPSHOT:run -Dglassfish.version=7.0.25
+mvn org.glassfish.embedded:embedded-glassfish-maven-plugin:7.0:run -Dglassfish.version=7.0.25
 ```
 
 Or add the plugin to your `pom.xml`:
@@ -16,9 +16,9 @@ Or add the plugin to your `pom.xml`:
 <plugin>
     <groupId>org.glassfish.embedded</groupId>
     <artifactId>embedded-glassfish-maven-plugin</artifactId>
-    <version>7.1-SNAPSHOT</version>
+    <version>7.0</version>
     <configuration>
-        <glassfish.version>7.0.25</glassfish.version>
+        <glassfish.version>7.1.0</glassfish.version>
     </configuration>
 </plugin>
 ```
@@ -58,7 +58,7 @@ mvn embedded-glassfish:stop
 <plugin>
     <groupId>org.glassfish.embedded</groupId>
     <artifactId>embedded-glassfish-maven-plugin</artifactId>
-    <version>7.1-SNAPSHOT</version>
+    <version>7.0</version>
     <executions>
         <execution>
             <id>start-server</id>
@@ -99,7 +99,7 @@ mvn embedded-glassfish:stop
 <plugin>
     <groupId>org.glassfish.embedded</groupId>
     <artifactId>embedded-glassfish-maven-plugin</artifactId>
-    <version>7.1-SNAPSHOT</version>
+    <version>7.0</version>
     <configuration>
         <port>8080</port>
         <app>${project.build.directory}/${project.build.finalName}.war</app>
@@ -118,7 +118,7 @@ The plugin automatically detects and deploys your project's main artifact withou
 <plugin>
     <groupId>org.glassfish.embedded</groupId>
     <artifactId>embedded-glassfish-maven-plugin</artifactId>
-    <version>7.1-SNAPSHOT</version>
+    <version>7.0</version>
     <configuration>
         <!-- Main artifact automatically deployed if no <app> parameter specified -->
     </configuration>
@@ -135,7 +135,7 @@ Execute administrative commands on the running server:
 <plugin>
     <groupId>org.glassfish.embedded</groupId>
     <artifactId>embedded-glassfish-maven-plugin</artifactId>
-    <version>7.1-SNAPSHOT</version>
+    <version>7.0</version>
     <configuration>
         <commands>
             <command>set configs.config.server-config.network-config.protocols.protocol.http-listener.http.websockets-support-enabled=true</command>
