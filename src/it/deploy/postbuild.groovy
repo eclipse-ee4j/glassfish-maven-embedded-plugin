@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2022, 2023 Contributors to Eclipse Foundation. All rights reserved.
+    Copyright (c) 2022, 2026 Contributors to Eclipse Foundation. All rights reserved.
 
     This program and the accompanying materials are made available under the
     terms of the Eclipse Public License v. 2.0, which is available at
@@ -14,6 +14,9 @@
     SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 */
 
+
+evaluate(new File(glassfishBuildScriptsDirectory, 'verify-http-check.groovy'))
+
 String [] buildLog = new File(basedir, 'build.log')
 
 messageLines = buildLog.grep(~/^INFO: myapp was successfully deployed.*/)
@@ -21,4 +24,3 @@ messageLines = buildLog.grep(~/^INFO: myapp was successfully deployed.*/)
 assert messageLines.size() == 1: 'Message about myapp app deployed was expected in build log with level INFO'
 
 true
-
