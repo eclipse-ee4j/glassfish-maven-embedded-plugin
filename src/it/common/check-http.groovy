@@ -14,7 +14,16 @@
     SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 */
 
-//System.in.newReader().readLine()
+def pause() {
+    def trigger = new File(basedir, 'continue.txt')
+    trigger.delete()
+    println "Build paused. Run: touch ${trigger} to continue..."
+    while (!trigger.exists()) { Thread.sleep(1000) }
+}
+
+if (project.properties['glassfish.check.pause']) {
+    pause()
+}
 
 def port = project.properties['glassfish.http.port']
 def reportFile = new File(project.build.directory, 'http-check-result.txt')

@@ -22,6 +22,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 import java.io.BufferedReader;
@@ -48,6 +49,14 @@ import java.util.Properties;
  */
 @Mojo(name = "run", defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class RunMojo extends AbstractDeployMojo {
+
+    /**
+     * When true, GlassFish will be stopped after all admin commands and deployments have been executed,
+     * instead of waiting for user input. Can also be set via the Maven property {@code glassfish.run.stop}.
+     * Mainly intended for automated tests.
+     */
+    @Parameter(property = "glassfish.run.stop", defaultValue = "false")
+    private boolean stop;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
 
@@ -77,6 +86,17 @@ public class RunMojo extends AbstractDeployMojo {
                     doDeploy(serverID, getClassLoader(), getBootStrapProperties(),
                             getGlassFishProperties(), new File(getApp(deployment.getProperty("app"))),
                             getDeploymentParameters(deployment));
+                }
+
+                if (stop) {
+                    /**
+                     * Undeploy all applications and stop GlassFish without waiting for user input.
+                     */
+                    for (Properties deployment : deployments) {
+                        doUndeploy(serverID, getClassLoader(), getBootStrapProperties(),
+                                getGlassFishProperties(), deployment.getProperty("name"), new String[0]);
+                    }
+                    break;
                 }
 
                 /**
