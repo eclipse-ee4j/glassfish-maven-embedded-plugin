@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023,2025 Contributors to the Eclipse Foundation.
+ * Copyright (c) 2023, 2026 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -34,6 +34,7 @@ import org.apache.maven.project.MavenProjectBuilder;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.StringReader;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -428,19 +429,30 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     }
 
     private ClassLoader getUberGFClassLoader() throws Exception {
-        // Use the version user has configured in the plugin.
         Artifact gfUber = getUberFromSpecifiedDependency();
-        ClassLoader cl = getClass().getClassLoader();
-        if (gfUber == null) { // not specified as dependency, hence not there in the classloader cl.
-            Artifact gfMvnPlugin = (Artifact) project.getPluginArtifactMap().get(thisArtifactId);
-            String gfVersion = getGlassfishVersion(gfMvnPlugin); // get the same version of uber jar as that of simple-glassfish-api used while building this plugin.
-            gfUber = factory.createArtifact(EMBEDDED_GROUP_ID, EMBEDDED_ALL,
-                    gfVersion, "compile", "jar");
-            resolver.resolve(gfUber, remoteRepositories, localRepository);
-            cl = new URLClassLoader(
-                    new URL[]{gfUber.getFile().toURI().toURL()}, getClass().getClassLoader());
+        if (gfUber != null) {
+            return getClass().getClassLoader();
         }
-        return cl;
+        return new URLClassLoader(
+                new URL[]{resolveGlassFishArtifact().getFile().toURI().toURL()},
+                getClass().getClassLoader());
+    }
+
+    /**
+     * Resolves the GlassFish embedded-all artifact, either from a plugin dependency
+     * already specified by the user, or by downloading the appropriate version.
+     *
+     * @return the resolved GlassFish embedded-all artifact
+     */
+    private Artifact resolveGlassFishArtifact() throws Exception {
+        Artifact gfUber = getUberFromSpecifiedDependency();
+        if (gfUber == null) {
+            Artifact gfMvnPlugin = (Artifact) project.getPluginArtifactMap().get(thisArtifactId);
+            String version = getGlassfishVersion(gfMvnPlugin);
+            gfUber = factory.createArtifact(EMBEDDED_GROUP_ID, EMBEDDED_ALL, version, "compile", "jar");
+            resolver.resolve(gfUber, remoteRepositories, localRepository);
+        }
+        return gfUber;
     }
 
     protected Properties getGlassFishProperties() {
@@ -577,6 +589,72 @@ public abstract class AbstractServerMojo extends AbstractMojo {
 //        String fs = File.separator;
 //        return new File(installRoot, "domains" + fs + "domain1").getAbsolutePath();
 //    }
+
+    /**
+     * Returns the plugin's own jar file by scanning the {@code plugin.artifacts} list,
+     * which contains resolved artifacts including the plugin itself.
+     * This is more reliable than {@code getPluginArtifactMap()} which may return an
+     * unresolved artifact with a null file during integration tests.
+     */
+    protected File getPluginJar() throws MojoExecutionException {
+        Object pluginArtifactObj = project.getPluginArtifactMap().get(thisArtifactId);
+        if (pluginArtifactObj instanceof Artifact) {
+            Artifact pluginArtifact = (Artifact) pluginArtifactObj;
+            if (pluginArtifact.getFile() != null) {
+                return pluginArtifact.getFile();
+            }
+        }
+        // Fallback: scan plugin.artifacts which contains resolved artifacts including the plugin itself
+        if (artifacts != null) {
+            for (Artifact artifact : artifacts) {
+                if (thisArtifactId.equals(artifact.getGroupId() + ":" + artifact.getArtifactId())) {
+                    File file = artifact.getFile();
+                    if (file != null) {
+                        return file;
+                    }
+                }
+            }
+        }
+        throw new MojoExecutionException("Could not locate plugin jar");
+    }
+
+    /**
+     * Resolves the GlassFish embedded-all jar file without creating a ClassLoader.
+     * Used by the fork mode to assemble the child JVM classpath.
+     *
+     * @return the resolved GlassFish embedded-all jar file
+     */
+    protected File getGlassFishJar() throws Exception {
+        return resolveGlassFishArtifact().getFile();
+    }
+
+    /**
+     * Writes bootstrap and GlassFish properties to a temporary config file for the forked JVM.
+     * Keys are prefixed with {@code bootstrap.} or {@code glassfish.prop.} to allow the runner
+     * to separate them on load.
+     *
+     * @param bootstrapProps bootstrap properties
+     * @param glassfishProps GlassFish properties
+     * @return the written temp file
+     */
+    protected File writeForkedConfig(Properties bootstrapProps, Properties glassfishProps) throws Exception {
+        Properties config = new Properties();
+        config.setProperty(GlassFishForkedRunner.SECTION_SERVER_ID, serverID);
+        for (String key : bootstrapProps.stringPropertyNames()) {
+            config.setProperty(GlassFishForkedRunner.SECTION_BOOTSTRAP + key,
+                    bootstrapProps.getProperty(key));
+        }
+        for (String key : glassfishProps.stringPropertyNames()) {
+            config.setProperty(GlassFishForkedRunner.SECTION_GLASSFISH + key,
+                    glassfishProps.getProperty(key));
+        }
+        File configFile = File.createTempFile("glassfish-maven-embedded-plugin-forked-", ".properties");
+        configFile.deleteOnExit();
+        try (FileOutputStream fos = new FileOutputStream(configFile)) {
+            config.store(fos, "GlassFish forked runner config");
+        }
+        return configFile;
+    }
 
     public void startGlassFish(String serverId, ClassLoader cl, Properties bootstrapProperties,
                                Properties glassfishProperties) throws Exception {
