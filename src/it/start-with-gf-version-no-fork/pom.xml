@@ -20,7 +20,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.glassfish.embedded.embedded-glassfish-maven-plugin.its</groupId>
-    <artifactId>start-with-gf-version-as-property</artifactId>
+    <artifactId>start-with-gf-version-no-fork</artifactId>
     <version>@project.version@</version>
     <packaging>pom</packaging>
 
@@ -43,6 +43,7 @@
                         </goals>
                         <configuration>
                             <port>@glassfish.http.port@</port>
+                            <glassfish.version>@tested.glassfish.version@</glassfish.version>
                         </configuration>
                     </execution>
                     <execution>

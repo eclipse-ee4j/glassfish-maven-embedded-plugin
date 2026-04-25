@@ -49,7 +49,13 @@ public class AdminMojo extends AbstractServerMojo {
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         try {
-            runCommand(serverID, getClassLoader(), commands);
+            if (isForkedMode()) {
+                for (String command : commands) {
+                    sendForkedCommand(GlassFishForkedRunner.CMD_ADMIN + " " + command);
+                }
+            } else {
+                runCommand(serverID, getClassLoader(), commands);
+            }
         } catch (Exception ex) {
             ex.printStackTrace();
             throw new MojoExecutionException(ex.getMessage(), ex);

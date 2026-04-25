@@ -36,15 +36,15 @@ import java.io.File;
 public class DeployMojo extends AbstractDeployMojo {
 
     public void execute() throws MojoExecutionException, MojoFailureException {
-
         try {
-            // call undeploy to prevent:
-            // org.jvnet.hk2.config.TransactionFailure: Keys cannot be duplicate.
-            // Old value of this key property, nullwill be retained
-//            doUndeploy(serverID, getClassLoader(), getBootStrapProperties(),
-//                    name, new String[0]);
-            doDeploy(serverID, getClassLoader(), getBootStrapProperties(),
-                    getGlassFishProperties(), new File(getApp()), getDeploymentParameters());
+            if (isForkedMode()) {
+                String[] params = getDeploymentParameters();
+                String paramStr = params.length > 0 ? " " + String.join(" ", params) : "";
+                sendForkedCommand(GlassFishForkedRunner.CMD_DEPLOY + " " + getApp() + paramStr);
+            } else {
+                doDeploy(serverID, getClassLoader(), getBootStrapProperties(),
+                        getGlassFishProperties(), new File(getApp()), getDeploymentParameters());
+            }
         } catch (Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }

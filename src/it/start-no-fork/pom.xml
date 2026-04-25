@@ -20,10 +20,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.glassfish.embedded.embedded-glassfish-maven-plugin.its</groupId>
-    <artifactId>start-with-gf-version-as-property</artifactId>
+    <artifactId>start-no-fork</artifactId>
     <version>@project.version@</version>
     <packaging>pom</packaging>
-
 
     <properties>
         <glassfish.http.port>@glassfish.http.port@</glassfish.http.port>
@@ -36,8 +35,8 @@
                 <version>@project.version@</version>
                 <executions>
                     <execution>
-                        <id>pre-integration</id>
-                        <phase>pre-integration-test</phase>
+                        <id>integration</id>
+                        <phase>integration-test</phase>
                         <goals>
                             <goal>start</goal>
                         </goals>

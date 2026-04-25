@@ -32,14 +32,19 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectBuilder;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -297,6 +302,11 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     protected static HashMap<String, ClassLoader> classLoaders = new HashMap();
     private static ClassLoader classLoader;
 
+    // Forked GlassFish process state — shared across all goals within a single build
+    private static Process forkedProcess;
+    private static BufferedWriter forkedWriter;
+    private static BufferedReader forkedReader;
+
     public abstract void execute() throws MojoExecutionException, MojoFailureException;
 
     protected ClassLoader getClassLoader() throws MojoExecutionException {
@@ -339,13 +349,17 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     }
 
     private void printClassPaths(String msg, ClassLoader classLoader) {
-        System.out.println(msg);
         ClassLoader cl = classLoader;
         while (cl != null && cl instanceof URLClassLoader) {
-            for (URL u : ((URLClassLoader) cl).getURLs()) {
-                System.out.println("ClassPath Element : " + u);
-            }
+            printClassPaths(msg, ((URLClassLoader) cl).getURLs());
             cl = cl.getParent();
+        }
+    }
+
+    private void printClassPaths(String msg, URL... urls) {
+        System.out.println(msg);
+        for (URL u : urls) {
+            System.out.println("ClassPath Element : " + u);
         }
     }
 
@@ -654,6 +668,116 @@ public abstract class AbstractServerMojo extends AbstractMojo {
             config.store(fos, "GlassFish forked runner config");
         }
         return configFile;
+    }
+
+    /**
+     * Returns true if GlassFish was started in a forked JVM by the start goal.
+     * Other goals use this to decide whether to communicate via stdin/stdout or in-process.
+     */
+    protected boolean isForkedMode() {
+        return forkedWriter != null;
+    }
+
+    /**
+     * Forks a new JVM running {@link GlassFishForkedRunner}, waits for the {@code READY} signal,
+     * then stores the process and streams in static fields for use by subsequent goals.
+     */
+    protected void startForkedGlassFish() throws Exception {
+        Properties bootstrapProps = getBootStrapProperties();
+        Properties glassfishProps = getGlassFishProperties();
+
+        File configFile = writeForkedConfig(bootstrapProps, glassfishProps);
+
+        File gfJar = getGlassFishJar();
+        File pluginJar = getPluginJar();
+        String classpath = pluginJar.getAbsolutePath() + File.pathSeparator + gfJar.getAbsolutePath();
+
+        String javaExecutable = ProcessHandle.current().info().command()
+                .orElseGet(() -> System.getProperty("java.home") + File.separator + "bin"
+                        + File.separator + "java");
+
+        printClassPaths("Launching GlassFish in a separate JVM, with the following ClassPath = ",
+                pluginJar.toURI().toURL(),
+                gfJar.toURI().toURL());
+
+        ProcessBuilder pb = new ProcessBuilder(
+                javaExecutable,
+                "--add-opens=java.base/java.io=ALL-UNNAMED",
+                "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                "--add-opens=java.base/java.util=ALL-UNNAMED",
+                "--add-opens=java.base/sun.nio.fs=ALL-UNNAMED",
+                "--add-opens=java.base/sun.net.www.protocol.jrt=ALL-UNNAMED",
+                "--add-opens=java.naming/javax.naming.spi=ALL-UNNAMED",
+                "--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED",
+                "--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED",
+                "--add-exports=java.naming/com.sun.jndi.ldap=ALL-UNNAMED",
+                "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                "--add-opens=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                "--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED",
+                "-cp", classpath,
+                GlassFishForkedRunner.class.getName(),
+                configFile.getAbsolutePath()
+        );
+        pb.redirectErrorStream(true);
+        forkedProcess = pb.start();
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (forkedProcess != null && forkedProcess.isAlive()) {
+                forkedProcess.destroyForcibly();
+            }
+        }, "glassfish-forked-process-cleanup"));
+
+        forkedReader = new BufferedReader(new InputStreamReader(forkedProcess.getInputStream()));
+
+        // Wait for READY signal, printing all lines until then
+        String line;
+        while ((line = forkedReader.readLine()) != null) {
+            System.out.println(line);
+            System.out.flush();
+            if (GlassFishForkedRunner.RESP_READY.equals(line.trim())) {
+                break;
+            }
+        }
+        if (!forkedProcess.isAlive()) {
+            throw new Exception("Forked GlassFish process ended before sending READY");
+        }
+
+        // Pump remaining output in background
+        Thread pumpThread = new Thread(() -> {
+            try {
+                String pumpLine;
+                while ((pumpLine = forkedReader.readLine()) != null) {
+                    System.out.println(pumpLine);
+                    System.out.flush();
+                }
+            } catch (Exception ignored) {
+            }
+        }, "glassfish-stdout-pump");
+        pumpThread.setDaemon(true);
+        pumpThread.start();
+
+        forkedWriter = new BufferedWriter(new OutputStreamWriter(forkedProcess.getOutputStream()));
+    }
+
+    /**
+     * Sends a command to the forked GlassFish process via stdin.
+     */
+    protected void sendForkedCommand(String command) throws Exception {
+        forkedWriter.write(command);
+        forkedWriter.newLine();
+        forkedWriter.flush();
+    }
+
+    /**
+     * Sends STOP to the forked GlassFish process and waits for it to exit,
+     * then clears the static forked state.
+     */
+    protected void stopForkedGlassFish() throws Exception {
+        sendForkedCommand(GlassFishForkedRunner.CMD_STOP);
+        forkedProcess.waitFor();
+        forkedProcess = null;
+        forkedWriter = null;
+        forkedReader = null;
     }
 
     public void startGlassFish(String serverId, ClassLoader cl, Properties bootstrapProperties,
