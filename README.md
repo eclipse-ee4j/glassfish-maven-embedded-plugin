@@ -2,6 +2,8 @@
 
 A Maven plugin for managing Embedded GlassFish server instances during the build lifecycle.
 
+Supports Eclipse GlassFish 6, 7, 8, or newer.
+
 ## Quick Start
 
 Run your project's main artifact on Embedded GlassFish directly from command line without modifying your `pom.xml`:
@@ -84,12 +86,12 @@ mvn embedded-glassfish:stop
 
 | Goal | Description | Default Phase |
 |------|-------------|---------------|
+| [`run`](#run) | Starts server, deploys apps, and runs interactively | none |
 | [`start`](#start) | Starts an Embedded GlassFish server | pre-integration-test |
 | [`stop`](#stop) | Stops the Embedded GlassFish server | post-integration-test |
 | [`deploy`](#deploy) | Deploys an application to the server | pre-integration-test |
 | [`undeploy`](#undeploy) | Undeploys an application from the server | post-integration-test |
-| [`run`](#run) | Starts server and keeps it running | none |
-| [`admin`](#admin) | Executes admin commands | none |
+| [`admin`](#admin) | Executes admin commands | pre-integration-test |
 
 ## Configuration
 
@@ -171,13 +173,30 @@ mvn embedded-glassfish:admin -Dcommands="set server.monitoring-service.module-mo
 
 ## Goal Reference
 
+### run
+Starts the server, deploys the project's WAR artifact by default, and waits for user input.
+Press Enter to redeploy, type `X` to undeploy and exit.
+
+A different artifact can be specified via the `app` configuration parameter.
+
+**Default Phase:** none (manual execution)
+
+**Example:**
+```bash
+mvn embedded-glassfish:run
+```
+
+```xml
+<!-- Deploy a specific artifact instead of the default WAR -->
+<configuration>
+    <app>${project.build.directory}/myapp.war</app>
+</configuration>
+```
+
 ### start
 Starts an Embedded GlassFish server with the configured parameters.
 
 **Default Phase:** pre-integration-test
-
-**Configuration:**
-- Uses all server configuration parameters (serverID, port, glassfishProperties, etc.)
 
 **Example:**
 ```bash
@@ -188,9 +207,6 @@ mvn embedded-glassfish:start
 Stops the Embedded GlassFish server and cleans up resources.
 
 **Default Phase:** post-integration-test
-
-**Configuration:**
-- `serverID` - Server identifier to stop (default: "maven")
 
 **Example:**
 ```bash
@@ -206,7 +222,17 @@ Deploys an application to the running Embedded GlassFish server.
 - `app` - Application path (auto-detects if not specified)
 - `name` - Application name (default: "myapp")
 - `contextRoot` - Web application context root
-- `deploymentParams` - Additional deployment parameters
+- `deploymentParams` - Raw `asadmin deploy` parameters, for options not covered by the above (e.g. `--precompilejsp=true`, `--createtables=true`)
+
+```xml
+<configuration>
+    <deploymentParams>
+        <param>--contextroot=greetings</param>
+        <param>--name=myapp</param>
+        <param>--precompilejsp=true</param>
+    </deploymentParams>
+</configuration>
+```
 
 **Example:**
 ```bash
@@ -227,20 +253,6 @@ Undeploys an application from the Embedded GlassFish server.
 mvn embedded-glassfish:undeploy -Dname=myapp
 ```
 
-### run
-Starts the server, deploys applications, and runs interactively. Allows redeployment by pressing Enter or exit by typing 'X'.
-
-**Default Phase:** none (manual execution)
-
-**Configuration:**
-- Combines all server and deployment configurations
-- Executes all configured admin and deploy goals
-
-**Example:**
-```bash
-mvn embedded-glassfish:run
-```
-
 ### admin
 Executes administrative commands on the running server.
 
@@ -252,6 +264,50 @@ Executes administrative commands on the running server.
 **Example:**
 ```bash
 mvn embedded-glassfish:admin -Dcommands="create-jdbc-resource --connectionpoolid mypool jdbc/myresource"
+```
+
+## Advanced Usage
+
+### Forked JVM Mode
+
+By default, the `start` and `run` goals launch GlassFish in a **forked JVM** — a separate process isolated from the Maven JVM. This avoids classloader conflicts and JVM option interference between Maven and GlassFish.
+
+When `start` forks GlassFish, subsequent goals (`deploy`, `undeploy`, `admin`, `stop`) automatically detect the forked process and communicate with it — no extra configuration needed.
+
+To run GlassFish in-process instead:
+
+```bash
+mvn embedded-glassfish:start -Dglassfish.start.fork=false
+mvn embedded-glassfish:run   -Dglassfish.run.fork=false
+```
+
+Or in `pom.xml`:
+```xml
+<configuration>
+    <fork>false</fork>
+</configuration>
+```
+
+### Non-interactive run mode
+
+The `run` goal normally waits for user input. Set `stop=true` to skip the interactive loop — GlassFish starts, deploys all apps, then immediately undeploys and stops. Useful for automated integration tests:
+
+```xml
+<execution>
+    <id>integration</id>
+    <phase>integration-test</phase>
+    <goals>
+        <goal>run</goal>
+    </goals>
+    <configuration>
+        <stop>true</stop>
+    </configuration>
+</execution>
+```
+
+Or via command line:
+```bash
+mvn embedded-glassfish:run -Dglassfish.run.stop=true
 ```
 
 ## License

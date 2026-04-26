@@ -51,7 +51,7 @@ import org.apache.maven.artifact.Artifact;
  *
  * @author bhavanishankar@dev.java.net
  */
-@Mojo(name = "run", defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
+@Mojo(name = "run")
 public class RunMojo extends AbstractDeployMojo {
 
     /**
