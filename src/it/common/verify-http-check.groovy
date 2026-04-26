@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2022, 2026 Contributors to Eclipse Foundation. All rights reserved.
+    Copyright (c) 2026 Contributors to Eclipse Foundation. All rights reserved.
 
     This program and the accompanying materials are made available under the
     terms of the Eclipse Public License v. 2.0, which is available at
@@ -14,12 +14,7 @@
     SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 */
 
-evaluate(new File(glassfishBuildScriptsDirectory, 'verify-http-check.groovy'))
-
-String [] buildLog = new File(basedir, 'build.log')
-
-startedLines = buildLog.grep(~/^INFO: Ran command.*SUCCESS.*/)
-
-assert startedLines.size() == 2: 'Expected messages about running admin commands in build log'
-
-true
+def httpCheckReport = new File(basedir, 'target/http-check-result.txt')
+assert httpCheckReport.exists() : 'HTTP check report file is missing'
+def httpCheckResult = httpCheckReport.text.trim()
+assert httpCheckResult == 'OK' : "HTTP check failed: ${httpCheckResult}"

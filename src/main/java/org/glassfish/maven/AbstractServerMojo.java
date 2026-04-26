@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023,2025 Contributors to the Eclipse Foundation.
+ * Copyright (c) 2023, 2026 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -32,13 +32,19 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectBuilder;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +75,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
 
     private static final String GF_API_GROUP_ID = "org.glassfish.main.common";
     private static final String GF_API_ARTIFACT_ID = "simple-glassfish-api";
-    private static final String DEFAULT_GF_VERSION = "7.0.0";
+    private static final String DEFAULT_GF_VERSION = "8.0.0";
     private static String gfVersion;
 
     /*******************************************
@@ -296,6 +302,11 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     protected static HashMap<String, ClassLoader> classLoaders = new HashMap();
     private static ClassLoader classLoader;
 
+    // Forked GlassFish process state — shared across all goals within a single build
+    private static Process forkedProcess;
+    private static BufferedWriter forkedWriter;
+    private static BufferedReader forkedReader;
+
     public abstract void execute() throws MojoExecutionException, MojoFailureException;
 
     protected ClassLoader getClassLoader() throws MojoExecutionException {
@@ -338,13 +349,17 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     }
 
     private void printClassPaths(String msg, ClassLoader classLoader) {
-        System.out.println(msg);
         ClassLoader cl = classLoader;
         while (cl != null && cl instanceof URLClassLoader) {
-            for (URL u : ((URLClassLoader) cl).getURLs()) {
-                System.out.println("ClassPath Element : " + u);
-            }
+            printClassPaths(msg, ((URLClassLoader) cl).getURLs());
             cl = cl.getParent();
+        }
+    }
+
+    private void printClassPaths(String msg, URL... urls) {
+        System.out.println(msg);
+        for (URL u : urls) {
+            System.out.println("ClassPath Element : " + u);
         }
     }
 
@@ -428,19 +443,30 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     }
 
     private ClassLoader getUberGFClassLoader() throws Exception {
-        // Use the version user has configured in the plugin.
         Artifact gfUber = getUberFromSpecifiedDependency();
-        ClassLoader cl = getClass().getClassLoader();
-        if (gfUber == null) { // not specified as dependency, hence not there in the classloader cl.
-            Artifact gfMvnPlugin = (Artifact) project.getPluginArtifactMap().get(thisArtifactId);
-            String gfVersion = getGlassfishVersion(gfMvnPlugin); // get the same version of uber jar as that of simple-glassfish-api used while building this plugin.
-            gfUber = factory.createArtifact(EMBEDDED_GROUP_ID, EMBEDDED_ALL,
-                    gfVersion, "compile", "jar");
-            resolver.resolve(gfUber, remoteRepositories, localRepository);
-            cl = new URLClassLoader(
-                    new URL[]{gfUber.getFile().toURI().toURL()}, getClass().getClassLoader());
+        if (gfUber != null) {
+            return getClass().getClassLoader();
         }
-        return cl;
+        return new URLClassLoader(
+                new URL[]{resolveGlassFishArtifact().getFile().toURI().toURL()},
+                getClass().getClassLoader());
+    }
+
+    /**
+     * Resolves the GlassFish embedded-all artifact, either from a plugin dependency
+     * already specified by the user, or by downloading the appropriate version.
+     *
+     * @return the resolved GlassFish embedded-all artifact
+     */
+    private Artifact resolveGlassFishArtifact() throws Exception {
+        Artifact gfUber = getUberFromSpecifiedDependency();
+        if (gfUber == null) {
+            Artifact gfMvnPlugin = (Artifact) project.getPluginArtifactMap().get(thisArtifactId);
+            String version = getGlassfishVersion(gfMvnPlugin);
+            gfUber = factory.createArtifact(EMBEDDED_GROUP_ID, EMBEDDED_ALL, version, "compile", "jar");
+            resolver.resolve(gfUber, remoteRepositories, localRepository);
+        }
+        return gfUber;
     }
 
     protected Properties getGlassFishProperties() {
@@ -577,6 +603,182 @@ public abstract class AbstractServerMojo extends AbstractMojo {
 //        String fs = File.separator;
 //        return new File(installRoot, "domains" + fs + "domain1").getAbsolutePath();
 //    }
+
+    /**
+     * Returns the plugin's own jar file by scanning the {@code plugin.artifacts} list,
+     * which contains resolved artifacts including the plugin itself.
+     * This is more reliable than {@code getPluginArtifactMap()} which may return an
+     * unresolved artifact with a null file during integration tests.
+     */
+    protected File getPluginJar() throws MojoExecutionException {
+        Object pluginArtifactObj = project.getPluginArtifactMap().get(thisArtifactId);
+        if (pluginArtifactObj instanceof Artifact) {
+            Artifact pluginArtifact = (Artifact) pluginArtifactObj;
+            if (pluginArtifact.getFile() != null) {
+                return pluginArtifact.getFile();
+            }
+        }
+        // Fallback: scan plugin.artifacts which contains resolved artifacts including the plugin itself
+        if (artifacts != null) {
+            for (Artifact artifact : artifacts) {
+                if (thisArtifactId.equals(artifact.getGroupId() + ":" + artifact.getArtifactId())) {
+                    File file = artifact.getFile();
+                    if (file != null) {
+                        return file;
+                    }
+                }
+            }
+        }
+        throw new MojoExecutionException("Could not locate plugin jar");
+    }
+
+    /**
+     * Resolves the GlassFish embedded-all jar file without creating a ClassLoader.
+     * Used by the fork mode to assemble the child JVM classpath.
+     *
+     * @return the resolved GlassFish embedded-all jar file
+     */
+    protected File getGlassFishJar() throws Exception {
+        return resolveGlassFishArtifact().getFile();
+    }
+
+    /**
+     * Writes bootstrap and GlassFish properties to a temporary config file for the forked JVM.
+     * Keys are prefixed with {@code bootstrap.} or {@code glassfish.prop.} to allow the runner
+     * to separate them on load.
+     *
+     * @param bootstrapProps bootstrap properties
+     * @param glassfishProps GlassFish properties
+     * @return the written temp file
+     */
+    protected File writeForkedConfig(Properties bootstrapProps, Properties glassfishProps) throws Exception {
+        Properties config = new Properties();
+        config.setProperty(GlassFishForkedRunner.SECTION_SERVER_ID, serverID);
+        for (String key : bootstrapProps.stringPropertyNames()) {
+            config.setProperty(GlassFishForkedRunner.SECTION_BOOTSTRAP + key,
+                    bootstrapProps.getProperty(key));
+        }
+        for (String key : glassfishProps.stringPropertyNames()) {
+            config.setProperty(GlassFishForkedRunner.SECTION_GLASSFISH + key,
+                    glassfishProps.getProperty(key));
+        }
+        File configFile = File.createTempFile("glassfish-maven-embedded-plugin-forked-", ".properties");
+        configFile.deleteOnExit();
+        try (FileOutputStream fos = new FileOutputStream(configFile)) {
+            config.store(fos, "GlassFish forked runner config");
+        }
+        return configFile;
+    }
+
+    /**
+     * Returns true if GlassFish was started in a forked JVM by the start goal.
+     * Other goals use this to decide whether to communicate via stdin/stdout or in-process.
+     */
+    protected boolean isForkedMode() {
+        return forkedWriter != null;
+    }
+
+    /**
+     * Forks a new JVM running {@link GlassFishForkedRunner}, waits for the {@code READY} signal,
+     * then stores the process and streams in static fields for use by subsequent goals.
+     */
+    protected void startForkedGlassFish() throws Exception {
+        Properties bootstrapProps = getBootStrapProperties();
+        Properties glassfishProps = getGlassFishProperties();
+
+        File configFile = writeForkedConfig(bootstrapProps, glassfishProps);
+
+        File gfJar = getGlassFishJar();
+        File pluginJar = getPluginJar();
+        String classpath = pluginJar.getAbsolutePath() + File.pathSeparator + gfJar.getAbsolutePath();
+
+        String javaExecutable = ProcessHandle.current().info().command()
+                .orElseGet(() -> System.getProperty("java.home") + File.separator + "bin"
+                        + File.separator + "java");
+
+        printClassPaths("Launching GlassFish in a separate JVM, with the following ClassPath = ",
+                pluginJar.toURI().toURL(),
+                gfJar.toURI().toURL());
+
+        ProcessBuilder pb = new ProcessBuilder(
+                javaExecutable,
+                "--add-opens=java.base/java.io=ALL-UNNAMED",
+                "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                "--add-opens=java.base/java.util=ALL-UNNAMED",
+                "--add-opens=java.base/sun.nio.fs=ALL-UNNAMED",
+                "--add-opens=java.base/sun.net.www.protocol.jrt=ALL-UNNAMED",
+                "--add-opens=java.naming/javax.naming.spi=ALL-UNNAMED",
+                "--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED",
+                "--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED",
+                "--add-exports=java.naming/com.sun.jndi.ldap=ALL-UNNAMED",
+                "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                "--add-opens=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                "--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED",
+                "-cp", classpath,
+                GlassFishForkedRunner.class.getName(),
+                configFile.getAbsolutePath()
+        );
+        pb.redirectErrorStream(true);
+        forkedProcess = pb.start();
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (forkedProcess != null && forkedProcess.isAlive()) {
+                forkedProcess.destroyForcibly();
+            }
+        }, "glassfish-forked-process-cleanup"));
+
+        forkedReader = new BufferedReader(new InputStreamReader(forkedProcess.getInputStream()));
+
+        // Wait for READY signal, printing all lines until then
+        String line;
+        while ((line = forkedReader.readLine()) != null) {
+            System.out.println(line);
+            System.out.flush();
+            if (GlassFishForkedRunner.RESP_READY.equals(line.trim())) {
+                break;
+            }
+        }
+        if (!forkedProcess.isAlive()) {
+            throw new Exception("Forked GlassFish process ended before sending READY");
+        }
+
+        // Pump remaining output in background
+        Thread pumpThread = new Thread(() -> {
+            try {
+                String pumpLine;
+                while ((pumpLine = forkedReader.readLine()) != null) {
+                    System.out.println(pumpLine);
+                    System.out.flush();
+                }
+            } catch (Exception ignored) {
+            }
+        }, "glassfish-stdout-pump");
+        pumpThread.setDaemon(true);
+        pumpThread.start();
+
+        forkedWriter = new BufferedWriter(new OutputStreamWriter(forkedProcess.getOutputStream()));
+    }
+
+    /**
+     * Sends a command to the forked GlassFish process via stdin.
+     */
+    protected void sendForkedCommand(String command) throws Exception {
+        forkedWriter.write(command);
+        forkedWriter.newLine();
+        forkedWriter.flush();
+    }
+
+    /**
+     * Sends STOP to the forked GlassFish process and waits for it to exit,
+     * then clears the static forked state.
+     */
+    protected void stopForkedGlassFish() throws Exception {
+        sendForkedCommand(GlassFishForkedRunner.CMD_STOP);
+        forkedProcess.waitFor();
+        forkedProcess = null;
+        forkedWriter = null;
+        forkedReader = null;
+    }
 
     public void startGlassFish(String serverId, ClassLoader cl, Properties bootstrapProperties,
                                Properties glassfishProperties) throws Exception {

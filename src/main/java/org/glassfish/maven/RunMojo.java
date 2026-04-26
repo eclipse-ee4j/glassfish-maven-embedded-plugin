@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Contributors to the Eclipse Foundation.
+ * Copyright (c) 2023, 2026 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -22,15 +22,20 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+
+import org.apache.maven.artifact.Artifact;
 
 /**
  * This Mojo starts Embedded GlassFish, executes all the 'admin' goals, and executes all 'deploy' goals, and waits for
@@ -46,68 +51,212 @@ import java.util.Properties;
  *
  * @author bhavanishankar@dev.java.net
  */
-@Mojo(name = "run", defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
+@Mojo(name = "run")
 public class RunMojo extends AbstractDeployMojo {
 
+    /**
+     * Abstracts the GlassFish operations so the deploy loop can be shared
+     * between in-process and forked execution modes.
+     */
+    private interface GlassFishCommands {
+        void runAdminCommand(String commandLine) throws Exception;
+        void deploy(String archivePath, String[] params) throws Exception;
+        void undeploy(String appName) throws Exception;
+        void stop() throws Exception;
+    }
+
+    /**
+     * When true, GlassFish will be stopped after all admin commands and deployments have been executed,
+     * instead of waiting for user input. Can also be set via the Maven property {@code glassfish.run.stop}.
+     * Mainly intended for automated tests.
+     */
+    @Parameter(property = "glassfish.run.stop", defaultValue = "false")
+    private boolean stop;
+
+    /**
+     * When true, GlassFish is started in a forked JVM. Communication with the forked process happens
+     * via stdin/stdout. Can also be set via the Maven property {@code glassfish.run.fork}.
+     */
+    @Parameter(property = "glassfish.run.fork", defaultValue = "true")
+    private boolean fork;
+
     public void execute() throws MojoExecutionException, MojoFailureException {
+        if (fork) {
+            executeForked();
+        } else {
+            executeInProcess();
+        }
+    }
 
-        List<Properties> commands = getAdminCommandConfigurations();
+    private void executeForked() throws MojoExecutionException {
         try {
-            /**
-             * Start GlassFish server.
-             */
-            startGlassFish(serverID, getClassLoader(), getBootStrapProperties(),
-                    getGlassFishProperties());
+            Properties bootstrapProps = getBootStrapProperties();
+            Properties glassfishProps = getGlassFishProperties();
 
-            /**
-             * Execute all 'admin' goals.
-             */
-            for (Properties command : commands) {
-                runCommand(serverID, getClassLoader(),
-                        ((List<String>) command.get("commands")).toArray(new String[0]));
-            }
+            File configFile = writeForkedConfig(bootstrapProps, glassfishProps);
 
-            while (true) {
-                List<Properties> deployments = getDeploymentConfigurations();
+            File gfJar = getGlassFishJar();
+            File pluginJar = getPluginJar();
+            String classpath = pluginJar.getAbsolutePath() + File.pathSeparator + gfJar.getAbsolutePath();
 
-                /**
-                 * Execute all 'deploy' goals.
-                 */
-                for (Properties deployment : deployments) {
-                    doDeploy(serverID, getClassLoader(), getBootStrapProperties(),
-                            getGlassFishProperties(), new File(getApp(deployment.getProperty("app"))),
-                            getDeploymentParameters(deployment));
+            String javaExecutable = ProcessHandle.current().info().command()
+                    .orElseGet(() -> System.getProperty("java.home") + File.separator + "bin"
+                            + File.separator + "java");
+
+            ProcessBuilder glassFishProcessBuilder = new ProcessBuilder(
+                    javaExecutable,
+                    "--add-opens=java.base/java.io=ALL-UNNAMED",
+                    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                    "--add-opens=java.base/java.util=ALL-UNNAMED",
+                    "--add-opens=java.base/sun.nio.fs=ALL-UNNAMED",
+                    "--add-opens=java.base/sun.net.www.protocol.jrt=ALL-UNNAMED",
+                    "--add-opens=java.naming/javax.naming.spi=ALL-UNNAMED",
+                    "--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED",
+                    "--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED",
+                    "--add-exports=java.naming/com.sun.jndi.ldap=ALL-UNNAMED",
+                    "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                    "--add-opens=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+                    "--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED",
+                    "-cp", classpath,
+                    GlassFishForkedRunner.class.getName(),
+                    configFile.getAbsolutePath()
+            );
+            glassFishProcessBuilder.redirectErrorStream(true);
+            Process process = glassFishProcessBuilder.start();
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                if (process.isAlive()) {
+                    process.destroyForcibly();
                 }
+            }, "glassfish-process-cleanup"));
 
-                /**
-                 * Wait for user input.
-                 */
-                System.out.println("Hit ENTER to redeploy, X to exit");
-                String str = new BufferedReader(new InputStreamReader(System.in)).readLine();
+            BufferedReader childOut = new BufferedReader(new InputStreamReader(process.getInputStream()));
 
-                /**
-                 * Undeploy all the applications deployed via 'deploy' goal.
-                 */
-                for (Properties deployment : deployments) {
-                    doUndeploy(serverID, getClassLoader(), getBootStrapProperties(),
-                            getGlassFishProperties(), deployment.getProperty("name"), new String[0]);
-
-                }
-                /**
-                 * Exit from embedded-glassfish:run if 'X' is entered.
-                 */
-                if (str.equalsIgnoreCase("X")) {
+            // Wait for READY signal, printing all lines until then
+            String line;
+            while ((line = childOut.readLine()) != null) {
+                System.out.println(line);
+                System.out.flush();
+                if (GlassFishForkedRunner.RESP_READY.equals(line.trim())) {
                     break;
                 }
             }
-            /**
-             * Stop GlassFish server
-             */
-            stopGlassFish(serverID, getClassLoader());
+            if (!process.isAlive()) {
+                throw new MojoExecutionException("Forked GlassFish process ended before sending READY");
+            }
+
+            // Continue pumping remaining output in background
+            Thread pumpThread = new Thread(() -> {
+                try {
+                    String pumpLine;
+                    while ((pumpLine = childOut.readLine()) != null) {
+                        System.out.println(pumpLine);
+                        System.out.flush();
+                    }
+                } catch (Exception ignored) {
+                }
+            }, "glassfish-stdout-pump");
+            pumpThread.setDaemon(true);
+            pumpThread.start();
+
+            BufferedWriter childIn = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
+
+            GlassFishCommands commands = new GlassFishCommands() {
+                public void runAdminCommand(String commandLine) throws Exception {
+                    sendCommand(childIn, GlassFishForkedRunner.CMD_ADMIN + " " + commandLine);
+                }
+                public void deploy(String archivePath, String[] params) throws Exception {
+                    String paramStr = params.length > 0 ? " " + String.join(" ", params) : "";
+                    sendCommand(childIn, GlassFishForkedRunner.CMD_DEPLOY + " " + archivePath + paramStr);
+                }
+                public void undeploy(String appName) throws Exception {
+                    sendCommand(childIn, GlassFishForkedRunner.CMD_UNDEPLOY + " " + appName);
+                }
+                public void stop() throws Exception {
+                    sendCommand(childIn, GlassFishForkedRunner.CMD_STOP);
+                }
+            };
+
+            runDeployLoop(commands);
+            process.waitFor();
         } catch (Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
+    }
 
+    private void sendCommand(BufferedWriter childIn, String command) throws Exception {
+        childIn.write(command);
+        childIn.newLine();
+        childIn.flush();
+    }
+
+    /**
+     * Shared deploy/undeploy/redeploy loop used by both in-process and forked execution modes.
+     * Runs admin commands, then repeatedly deploys, optionally waits for user input to redeploy,
+     * and finally stops GlassFish.
+     */
+    private void runDeployLoop(GlassFishCommands gf) throws Exception {
+        for (Properties command : getAdminCommandConfigurations()) {
+            for (String cmd : (List<String>) command.get("commands")) {
+                gf.runAdminCommand(cmd);
+            }
+        }
+
+        while (true) {
+            List<Properties> deployments = getDeploymentConfigurations();
+
+            for (Properties deployment : deployments) {
+                gf.deploy(getApp(deployment.getProperty("app")), getDeploymentParameters(deployment));
+            }
+
+            if (stop) {
+                for (Properties deployment : deployments) {
+                    gf.undeploy(deployment.getProperty("name"));
+                }
+                break;
+            }
+
+            System.out.println("Hit ENTER to redeploy, X to exit");
+            String input = new BufferedReader(new InputStreamReader(System.in)).readLine();
+
+            for (Properties deployment : deployments) {
+                gf.undeploy(deployment.getProperty("name"));
+            }
+
+            if (input.equalsIgnoreCase("X")) {
+                break;
+            }
+        }
+
+        gf.stop();
+    }
+
+    private void executeInProcess() throws MojoExecutionException, MojoFailureException {
+        try {
+            startGlassFish(serverID, getClassLoader(), getBootStrapProperties(),
+                    getGlassFishProperties());
+
+            GlassFishCommands commands = new GlassFishCommands() {
+                public void runAdminCommand(String commandLine) throws Exception {
+                    runCommand(serverID, getClassLoader(), new String[]{commandLine});
+                }
+                public void deploy(String archivePath, String[] params) throws Exception {
+                    doDeploy(serverID, getClassLoader(), getBootStrapProperties(),
+                            getGlassFishProperties(), new File(archivePath), params);
+                }
+                public void undeploy(String appName) throws Exception {
+                    doUndeploy(serverID, getClassLoader(), getBootStrapProperties(),
+                            getGlassFishProperties(), appName, new String[0]);
+                }
+                public void stop() throws Exception {
+                    stopGlassFish(serverID, getClassLoader());
+                }
+            };
+
+            runDeployLoop(commands);
+        } catch (Exception e) {
+            throw new MojoExecutionException(e.getMessage(), e);
+        }
     }
 
     // Retrieve all the "admin" goals defined in the plugin.

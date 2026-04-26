@@ -20,6 +20,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
 
 /**
  * This Mojo starts the Embedded GlassFish with the configured parameters
@@ -30,10 +31,22 @@ import org.apache.maven.plugins.annotations.Mojo;
 @Mojo(name = "start", defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class StartMojo extends AbstractServerMojo {
 
+    /**
+     * When true, GlassFish is started in a forked JVM. Subsequent goals (deploy, undeploy,
+     * admin, stop) will automatically detect the forked process and communicate with it
+     * via stdin/stdout. Can also be set via the Maven property {@code glassfish.fork}.
+     */
+    @Parameter(property = "glassfish.start.fork", defaultValue = "true")
+    private boolean fork;
+
     public void execute() throws MojoExecutionException, MojoFailureException {
         try {
-            startGlassFish(serverID, getClassLoader(), getBootStrapProperties(),
-                    getGlassFishProperties());
+            if (fork) {
+                startForkedGlassFish();
+            } else {
+                startGlassFish(serverID, getClassLoader(), getBootStrapProperties(),
+                        getGlassFishProperties());
+            }
         } catch (Exception ex) {
             throw new MojoExecutionException(ex.getMessage(), ex);
         }
