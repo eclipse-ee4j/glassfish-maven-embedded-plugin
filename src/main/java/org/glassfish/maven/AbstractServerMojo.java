@@ -75,7 +75,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
 
     private static final String GF_API_GROUP_ID = "org.glassfish.main.common";
     private static final String GF_API_ARTIFACT_ID = "simple-glassfish-api";
-    private static final String DEFAULT_GF_VERSION = "7.0.0";
+    private static final String DEFAULT_GF_VERSION = "8.0.0";
     private static String gfVersion;
 
     /*******************************************

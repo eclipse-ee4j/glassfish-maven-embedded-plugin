@@ -9,7 +9,7 @@ Supports Eclipse GlassFish 6, 7, 8, or newer.
 Run your project's main artifact on Embedded GlassFish directly from command line without modifying your `pom.xml`:
 
 ```bash
-mvn org.glassfish.embedded:embedded-glassfish-maven-plugin:7.0:run -Dglassfish.version=7.0.25
+mvn org.glassfish.embedded:embedded-glassfish-maven-plugin:8.0:run -Dglassfish.version=8.0.1
 ```
 
 Or add the plugin to your `pom.xml`:
@@ -18,9 +18,9 @@ Or add the plugin to your `pom.xml`:
 <plugin>
     <groupId>org.glassfish.embedded</groupId>
     <artifactId>embedded-glassfish-maven-plugin</artifactId>
-    <version>7.0</version>
+    <version>8.0</version>
     <configuration>
-        <glassfish.version>7.1.0</glassfish.version>
+        <glassfish.version>8.0.1</glassfish.version>
     </configuration>
 </plugin>
 ```
@@ -156,7 +156,7 @@ mvn embedded-glassfish:admin -Dcommands="set server.monitoring-service.module-mo
 
 ### Server Configuration
 - `configFile` - Custom domain configuration file
-- `glassfish.version` - GlassFish version to use
+- `glassfish.version` - GlassFish version to use (default: 8.0.0)
 - `port` - HTTP port number (default: 8080)
 - `ports` - Map of port configurations
 - `serverID` - Server identifier (default: "maven")
