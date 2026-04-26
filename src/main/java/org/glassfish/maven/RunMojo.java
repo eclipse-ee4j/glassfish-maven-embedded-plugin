@@ -262,7 +262,7 @@ public class RunMojo extends AbstractDeployMojo {
     // Retrieve all the "admin" goals defined in the plugin.
     private List<Properties> getAdminCommandConfigurations() {
 
-        List<Properties> deployments = new ArrayList<Properties>();
+        List<Properties> commands = new ArrayList<Properties>();
 
         Plugin embeddedPlugin = getPlugin("embedded-glassfish-maven-plugin");
 
@@ -271,10 +271,17 @@ public class RunMojo extends AbstractDeployMojo {
         for (PluginExecution pluginExecution : deployGoals) {
             Properties configurations = getConfigurations(
                     pluginExecution, embeddedPlugin, "commands");
-            deployments.add(configurations);
+            commands.add(configurations);
         }
 
-        return deployments;
+        /* If no admin goal specified, add a default deployment */
+        if (deployGoals.isEmpty()) {
+            Properties configurations = getConfigurations(
+                    null, embeddedPlugin, "commands");
+            commands.add(configurations);
+        }
+
+        return commands;
     }
 
     // Retrieve all the "deploy" goals defined in the plugin.
