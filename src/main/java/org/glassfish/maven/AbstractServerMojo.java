@@ -44,6 +44,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -245,6 +246,33 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      */
     @Parameter(property = "glassfish.version", alias = "glassfish.version")
     protected String glassfishVersion;
+
+    /**
+     * Additional JVM arguments to pass when launching GlassFish in a forked JVM.
+     * <p/>
+     * For example:
+     * <pre>
+     * &lt;vmArgs&gt;
+     *      &lt;vmArg&gt;-Xmx512m&lt;/vmArg&gt;
+     *      &lt;vmArg&gt;-Dmy.property=value&lt;/vmArg&gt;
+     * &lt;/vmArgs&gt;
+     * </pre>
+     */
+    @Parameter
+    protected List<String> vmArgs;
+
+    /**
+     * Additional JVM arguments to pass when launching GlassFish in a forked JVM,
+     * as a space-separated string. Intended for command-line use.
+     * Arguments specified here are merged with those in {@code vmArgs}.
+     * <p/>
+     * For example:
+     * <pre>
+     * mvn embedded-glassfish:start -Dglassfish.vm.args="-Xmx512m -Dmy.property=value"
+     * </pre>
+     */
+    @Parameter(property = "glassfish.vm.args")
+    protected String vmArgsProperty;
 
     /*===============================================
      * End of parameters supplied by configuration
@@ -700,24 +728,27 @@ public abstract class AbstractServerMojo extends AbstractMojo {
                 pluginJar.toURI().toURL(),
                 gfJar.toURI().toURL());
 
-        ProcessBuilder pb = new ProcessBuilder(
-                javaExecutable,
-                "--add-opens=java.base/java.io=ALL-UNNAMED",
-                "--add-opens=java.base/java.lang=ALL-UNNAMED",
-                "--add-opens=java.base/java.util=ALL-UNNAMED",
-                "--add-opens=java.base/sun.nio.fs=ALL-UNNAMED",
-                "--add-opens=java.base/sun.net.www.protocol.jrt=ALL-UNNAMED",
-                "--add-opens=java.naming/javax.naming.spi=ALL-UNNAMED",
-                "--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED",
-                "--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED",
-                "--add-exports=java.naming/com.sun.jndi.ldap=ALL-UNNAMED",
-                "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
-                "--add-opens=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
-                "--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED",
-                "-cp", classpath,
-                GlassFishForkedRunner.class.getName(),
-                configFile.getAbsolutePath()
-        );
+        List<String> command = new ArrayList<>();
+        command.add(javaExecutable);
+        addArgumentsFromConfig(command);
+        command.add("--add-opens=java.base/java.io=ALL-UNNAMED");
+        command.add("--add-opens=java.base/java.lang=ALL-UNNAMED");
+        command.add("--add-opens=java.base/java.util=ALL-UNNAMED");
+        command.add("--add-opens=java.base/sun.nio.fs=ALL-UNNAMED");
+        command.add("--add-opens=java.base/sun.net.www.protocol.jrt=ALL-UNNAMED");
+        command.add("--add-opens=java.naming/javax.naming.spi=ALL-UNNAMED");
+        command.add("--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED");
+        command.add("--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED");
+        command.add("--add-exports=java.naming/com.sun.jndi.ldap=ALL-UNNAMED");
+        command.add("--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED");
+        command.add("--add-opens=java.base/jdk.internal.vm.annotation=ALL-UNNAMED");
+        command.add("--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED");
+        command.add("-cp");
+        command.add(classpath);
+        command.add(GlassFishForkedRunner.class.getName());
+        command.add(configFile.getAbsolutePath());
+
+        ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
         forkedProcess = pb.start();
 
@@ -729,26 +760,28 @@ public abstract class AbstractServerMojo extends AbstractMojo {
 
         forkedReader = new BufferedReader(new InputStreamReader(forkedProcess.getInputStream()));
 
-        // Wait for READY signal, printing all lines until then
+        // Wait for READY signal, printing all lines until then (but not the READY line itself)
         String line;
         while ((line = forkedReader.readLine()) != null) {
-            System.out.println(line);
-            System.out.flush();
             if (GlassFishForkedRunner.RESP_READY.equals(line.trim())) {
                 break;
             }
+            System.out.println(line);
         }
         if (!forkedProcess.isAlive()) {
             throw new Exception("Forked GlassFish process ended before sending READY");
         }
 
-        // Pump remaining output in background
+        // Pump remaining output in background, filtering out protocol response lines
         Thread pumpThread = new Thread(() -> {
             try {
                 String pumpLine;
                 while ((pumpLine = forkedReader.readLine()) != null) {
-                    System.out.println(pumpLine);
-                    System.out.flush();
+                    if (!pumpLine.startsWith(GlassFishForkedRunner.RESP_OK)
+                            && !pumpLine.startsWith(GlassFishForkedRunner.RESP_ERROR)) {
+                        System.out.println(pumpLine);
+                        System.out.flush();
+                    }
                 }
             } catch (Exception ignored) {
             }
@@ -757,6 +790,17 @@ public abstract class AbstractServerMojo extends AbstractMojo {
         pumpThread.start();
 
         forkedWriter = new BufferedWriter(new OutputStreamWriter(forkedProcess.getOutputStream()));
+    }
+
+    private void addArgumentsFromConfig(List<String> command) {
+        if (vmArgs != null) {
+            command.addAll(vmArgs);
+        }
+        if (vmArgsProperty != null && !vmArgsProperty.trim().isEmpty()) {
+            for (String arg : vmArgsProperty.trim().split("\\s+")) {
+                command.add(arg);
+            }
+        }
     }
 
     /**

@@ -274,11 +274,30 @@ By default, the `start` and `run` goals launch GlassFish in a **forked JVM** —
 
 When `start` forks GlassFish, subsequent goals (`deploy`, `undeploy`, `admin`, `stop`) automatically detect the forked process and communicate with it — no extra configuration needed.
 
+To pass additional JVM arguments to the forked GlassFish process, use `vmArgs` in `pom.xml`:
+
+```xml
+<configuration>
+    <vmArgs>
+        <vmArg>-Xmx512m</vmArg>
+        <vmArg>-Dmy.property=value</vmArg>
+    </vmArgs>
+</configuration>
+```
+
+Or via command line using `glassfish.vm.args` (space-separated):
+
+```bash
+mvn embedded-glassfish:start -Dglassfish.vm.args="-Xmx512m -Dmy.property=value"
+```
+
+Both can be used at the same time — arguments are merged.
+
 To run GlassFish in-process instead:
 
 ```bash
-mvn embedded-glassfish:start -Dglassfish.start.fork=false
-mvn embedded-glassfish:run   -Dglassfish.run.fork=false
+mvn embedded-glassfish:start -Dglassfish.fork=false
+mvn embedded-glassfish:run   -Dglassfish.fork=false
 ```
 
 Or in `pom.xml`:

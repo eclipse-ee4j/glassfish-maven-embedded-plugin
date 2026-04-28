@@ -36,7 +36,7 @@ public class StartMojo extends AbstractServerMojo {
      * admin, stop) will automatically detect the forked process and communicate with it
      * via stdin/stdout. Can also be set via the Maven property {@code glassfish.fork}.
      */
-    @Parameter(property = "glassfish.start.fork", defaultValue = "true")
+    @Parameter(property = "glassfish.fork", defaultValue = "true")
     private boolean fork;
 
     public void execute() throws MojoExecutionException, MojoFailureException {

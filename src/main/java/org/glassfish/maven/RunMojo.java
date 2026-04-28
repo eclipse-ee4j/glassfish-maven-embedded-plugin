@@ -20,7 +20,6 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
@@ -71,9 +70,9 @@ public class RunMojo extends AbstractDeployMojo {
 
     /**
      * When true, GlassFish is started in a forked JVM. Communication with the forked process happens
-     * via stdin/stdout. Can also be set via the Maven property {@code glassfish.run.fork}.
+     * via stdin/stdout. Can also be set via the Maven property {@code glassfish.fork}.
      */
-    @Parameter(property = "glassfish.run.fork", defaultValue = "true")
+    @Parameter(property = "glassfish.fork", defaultValue = "true")
     private boolean fork;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
