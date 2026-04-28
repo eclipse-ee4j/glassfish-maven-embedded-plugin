@@ -53,6 +53,15 @@ public class GlassFishForkedRunner {
     static final String RESP_OK = "OK";
     static final String RESP_ERROR = "ERROR";
 
+    static final String RESP_OK_ADMIN = "OK_ADMIN";
+    static final String RESP_OK_DEPLOY = "OK_DEPLOY";
+    static final String RESP_OK_UNDEPLOY = "OK_UNDEPLOY";
+    static final String RESP_OK_STOP = "OK_STOP";
+    static final String RESP_ERROR_ADMIN = "ERROR_ADMIN";
+    static final String RESP_ERROR_DEPLOY = "ERROR_DEPLOY";
+    static final String RESP_ERROR_UNDEPLOY = "ERROR_UNDEPLOY";
+    static final String RESP_ERROR_STOP = "ERROR_STOP";
+
     static final String SECTION_SERVER_ID = "serverID";
     static final String SECTION_BOOTSTRAP = "bootstrap.";
     static final String SECTION_GLASSFISH = "glassfish.prop.";
@@ -113,18 +122,18 @@ public class GlassFishForkedRunner {
     private static void handleStop(String serverId) {
         try {
             PluginUtil.stopGlassFish(serverId);
-            respond(RESP_OK, null);
+            respond(RESP_OK_STOP, null);
         } catch (Exception e) {
-            respond(RESP_ERROR, e.getMessage());
+            respond(RESP_ERROR_STOP, e.getMessage());
         }
     }
 
     private static void handleAdmin(String serverId, String commandLine) {
         try {
             PluginUtil.runCommand(serverId, new String[]{commandLine});
-            respond(RESP_OK, null);
+            respond(RESP_OK_ADMIN, null);
         } catch (Exception e) {
-            respond(RESP_ERROR, e.getMessage());
+            respond(RESP_ERROR_ADMIN, e.getMessage());
         }
     }
 
@@ -136,9 +145,9 @@ public class GlassFishForkedRunner {
         try {
             PluginUtil.doDeploy(serverId, GlassFishForkedRunner.class.getClassLoader(),
                     bootstrapProps, glassfishProps, archive, deployParams);
-            respond(RESP_OK, null);
+            respond(RESP_OK_DEPLOY, null);
         } catch (Exception e) {
-            respond(RESP_ERROR, e.getMessage());
+            respond(RESP_ERROR_DEPLOY, e.getMessage());
         }
     }
 
@@ -150,9 +159,9 @@ public class GlassFishForkedRunner {
         try {
             PluginUtil.doUndeploy(serverId, GlassFishForkedRunner.class.getClassLoader(),
                     bootstrapProps, glassfishProps, appName, undeployParams);
-            respond(RESP_OK, null);
+            respond(RESP_OK_UNDEPLOY, null);
         } catch (Exception e) {
-            respond(RESP_ERROR, e.getMessage());
+            respond(RESP_ERROR_UNDEPLOY, e.getMessage());
         }
     }
 

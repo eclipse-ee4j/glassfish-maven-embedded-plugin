@@ -50,6 +50,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * @author bhavanishankar@dev.java.net
@@ -334,6 +335,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     private static Process forkedProcess;
     private static BufferedWriter forkedWriter;
     private static BufferedReader forkedReader;
+    private static volatile CountDownLatch commandLatch;
 
     public abstract void execute() throws MojoExecutionException, MojoFailureException;
 
@@ -772,13 +774,18 @@ public abstract class AbstractServerMojo extends AbstractMojo {
             throw new Exception("Forked GlassFish process ended before sending READY");
         }
 
-        // Pump remaining output in background, filtering out protocol response lines
+        // Pump remaining output in background; counts down commandLatch on OK_*/ERROR_* lines
         Thread pumpThread = new Thread(() -> {
             try {
                 String pumpLine;
                 while ((pumpLine = forkedReader.readLine()) != null) {
-                    if (!pumpLine.startsWith(GlassFishForkedRunner.RESP_OK)
-                            && !pumpLine.startsWith(GlassFishForkedRunner.RESP_ERROR)) {
+                    if (pumpLine.startsWith(GlassFishForkedRunner.RESP_OK)
+                            || pumpLine.startsWith(GlassFishForkedRunner.RESP_ERROR)) {
+                        CountDownLatch latch = commandLatch;
+                        if (latch != null) {
+                            latch.countDown();
+                        }
+                    } else {
                         System.out.println(pumpLine);
                         System.out.flush();
                     }
@@ -804,12 +811,16 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     }
 
     /**
-     * Sends a command to the forked GlassFish process via stdin.
+     * Sends a command to the forked GlassFish process via stdin and waits for completion.
+     * Blocks until the pump thread receives an {@code OK_*} or {@code ERROR_*} response line.
      */
     protected void sendForkedCommand(String command) throws Exception {
+        commandLatch = new CountDownLatch(1);
         forkedWriter.write(command);
         forkedWriter.newLine();
         forkedWriter.flush();
+        commandLatch.await();
+        commandLatch = null;
     }
 
     /**
