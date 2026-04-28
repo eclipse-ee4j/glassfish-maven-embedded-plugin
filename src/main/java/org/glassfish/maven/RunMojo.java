@@ -26,16 +26,12 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-
-import org.apache.maven.artifact.Artifact;
 
 /**
  * This Mojo starts Embedded GlassFish, executes all the 'admin' goals, and executes all 'deploy' goals, and waits for
@@ -90,104 +86,28 @@ public class RunMojo extends AbstractDeployMojo {
 
     private void executeForked() throws MojoExecutionException {
         try {
-            Properties bootstrapProps = getBootStrapProperties();
-            Properties glassfishProps = getGlassFishProperties();
-
-            File configFile = writeForkedConfig(bootstrapProps, glassfishProps);
-
-            File gfJar = getGlassFishJar();
-            File pluginJar = getPluginJar();
-            String classpath = pluginJar.getAbsolutePath() + File.pathSeparator + gfJar.getAbsolutePath();
-
-            String javaExecutable = ProcessHandle.current().info().command()
-                    .orElseGet(() -> System.getProperty("java.home") + File.separator + "bin"
-                            + File.separator + "java");
-
-            ProcessBuilder glassFishProcessBuilder = new ProcessBuilder(
-                    javaExecutable,
-                    "--add-opens=java.base/java.io=ALL-UNNAMED",
-                    "--add-opens=java.base/java.lang=ALL-UNNAMED",
-                    "--add-opens=java.base/java.util=ALL-UNNAMED",
-                    "--add-opens=java.base/sun.nio.fs=ALL-UNNAMED",
-                    "--add-opens=java.base/sun.net.www.protocol.jrt=ALL-UNNAMED",
-                    "--add-opens=java.naming/javax.naming.spi=ALL-UNNAMED",
-                    "--add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED",
-                    "--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED",
-                    "--add-exports=java.naming/com.sun.jndi.ldap=ALL-UNNAMED",
-                    "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
-                    "--add-opens=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
-                    "--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED",
-                    "-cp", classpath,
-                    GlassFishForkedRunner.class.getName(),
-                    configFile.getAbsolutePath()
-            );
-            glassFishProcessBuilder.redirectErrorStream(true);
-            Process process = glassFishProcessBuilder.start();
-
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                if (process.isAlive()) {
-                    process.destroyForcibly();
-                }
-            }, "glassfish-process-cleanup"));
-
-            BufferedReader childOut = new BufferedReader(new InputStreamReader(process.getInputStream()));
-
-            // Wait for READY signal, printing all lines until then
-            String line;
-            while ((line = childOut.readLine()) != null) {
-                System.out.println(line);
-                System.out.flush();
-                if (GlassFishForkedRunner.RESP_READY.equals(line.trim())) {
-                    break;
-                }
-            }
-            if (!process.isAlive()) {
-                throw new MojoExecutionException("Forked GlassFish process ended before sending READY");
-            }
-
-            // Continue pumping remaining output in background
-            Thread pumpThread = new Thread(() -> {
-                try {
-                    String pumpLine;
-                    while ((pumpLine = childOut.readLine()) != null) {
-                        System.out.println(pumpLine);
-                        System.out.flush();
-                    }
-                } catch (Exception ignored) {
-                }
-            }, "glassfish-stdout-pump");
-            pumpThread.setDaemon(true);
-            pumpThread.start();
-
-            BufferedWriter childIn = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
+            startForkedGlassFish();
 
             GlassFishCommands commands = new GlassFishCommands() {
                 public void runAdminCommand(String commandLine) throws Exception {
-                    sendCommand(childIn, GlassFishForkedRunner.CMD_ADMIN + " " + commandLine);
+                    sendForkedCommand(GlassFishForkedRunner.CMD_ADMIN + " " + commandLine);
                 }
                 public void deploy(String archivePath, String[] params) throws Exception {
                     String paramStr = params.length > 0 ? " " + String.join(" ", params) : "";
-                    sendCommand(childIn, GlassFishForkedRunner.CMD_DEPLOY + " " + archivePath + paramStr);
+                    sendForkedCommand(GlassFishForkedRunner.CMD_DEPLOY + " " + archivePath + paramStr);
                 }
                 public void undeploy(String appName) throws Exception {
-                    sendCommand(childIn, GlassFishForkedRunner.CMD_UNDEPLOY + " " + appName);
+                    sendForkedCommand(GlassFishForkedRunner.CMD_UNDEPLOY + " " + appName);
                 }
                 public void stop() throws Exception {
-                    sendCommand(childIn, GlassFishForkedRunner.CMD_STOP);
+                    stopForkedGlassFish();
                 }
             };
 
             runDeployLoop(commands);
-            process.waitFor();
         } catch (Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
-    }
-
-    private void sendCommand(BufferedWriter childIn, String command) throws Exception {
-        childIn.write(command);
-        childIn.newLine();
-        childIn.flush();
     }
 
     /**
@@ -197,8 +117,11 @@ public class RunMojo extends AbstractDeployMojo {
      */
     private void runDeployLoop(GlassFishCommands gf) throws Exception {
         for (Properties command : getAdminCommandConfigurations()) {
-            for (String cmd : (List<String>) command.get("commands")) {
-                gf.runAdminCommand(cmd);
+            List<String> cmds = (List<String>) command.get("commands");
+            if (cmds != null) {
+                for (String cmd : cmds) {
+                    gf.runAdminCommand(cmd);
+                }
             }
         }
 
@@ -206,22 +129,16 @@ public class RunMojo extends AbstractDeployMojo {
             List<Properties> deployments = getDeploymentConfigurations();
 
             for (Properties deployment : deployments) {
+                // if app not defined, the default app will be deployed
                 gf.deploy(getApp(deployment.getProperty("app")), getDeploymentParameters(deployment));
             }
 
             if (stop) {
-                for (Properties deployment : deployments) {
-                    gf.undeploy(deployment.getProperty("name"));
-                }
                 break;
             }
 
             System.out.println("Hit ENTER to redeploy, X to exit");
             String input = new BufferedReader(new InputStreamReader(System.in)).readLine();
-
-            for (Properties deployment : deployments) {
-                gf.undeploy(deployment.getProperty("name"));
-            }
 
             if (input.equalsIgnoreCase("X")) {
                 break;
@@ -261,52 +178,31 @@ public class RunMojo extends AbstractDeployMojo {
 
     // Retrieve all the "admin" goals defined in the plugin.
     private List<Properties> getAdminCommandConfigurations() {
-
-        List<Properties> commands = new ArrayList<Properties>();
-
-        Plugin embeddedPlugin = getPlugin("embedded-glassfish-maven-plugin");
-
-        List<PluginExecution> deployGoals = getGoals(embeddedPlugin, "admin");
-
-        for (PluginExecution pluginExecution : deployGoals) {
-            Properties configurations = getConfigurations(
-                    pluginExecution, embeddedPlugin, "commands");
-            commands.add(configurations);
-        }
-
-        /* If no admin goal specified, add a default deployment */
-        if (deployGoals.isEmpty()) {
-            Properties configurations = getConfigurations(
-                    null, embeddedPlugin, "commands");
-            commands.add(configurations);
-        }
-
-        return commands;
+        return getGoalConfigurations("admin", "commands");
     }
 
     // Retrieve all the "deploy" goals defined in the plugin.
     private List<Properties> getDeploymentConfigurations() {
+        return getGoalConfigurations("deploy", "deploymentParams");
+    }
 
-        List<Properties> deployments = new ArrayList<>();
+    private List<Properties> getGoalConfigurations(String goalName, String nonLeafNodeName) {
+        List<Properties> result = new ArrayList<>();
 
         Plugin embeddedPlugin = getPlugin("embedded-glassfish-maven-plugin");
 
-        List<PluginExecution> deployGoals = getGoals(embeddedPlugin, "deploy");
+        List<PluginExecution> executions = getGoals(embeddedPlugin, goalName);
 
-        for (PluginExecution pluginExecution : deployGoals) {
-            Properties configurations = getConfigurations(
-                    pluginExecution, embeddedPlugin, "deploymentParams");
-            deployments.add(configurations);
+        for (PluginExecution pluginExecution : executions) {
+            result.add(getConfigurations(pluginExecution, embeddedPlugin, nonLeafNodeName));
         }
 
-        /* If no deploy goal specified, add a default deployment */
-        if (deployGoals.isEmpty()) {
-            Properties configurations = getConfigurations(
-                    null, embeddedPlugin, "deploymentParams");
-            deployments.add(configurations);
+        /* If no matching goal specified, fall back to plugin-level configuration */
+        if (executions.isEmpty()) {
+            result.add(getConfigurations(null, embeddedPlugin, nonLeafNodeName));
         }
 
-        return deployments;
+        return result;
     }
 
     /**
