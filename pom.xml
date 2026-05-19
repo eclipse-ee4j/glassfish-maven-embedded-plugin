@@ -27,7 +27,7 @@
     <groupId>org.glassfish.embedded</groupId>
     <artifactId>embedded-glassfish-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
-    <version>8.0</version>
+    <version>8.1-SNAPSHOT</version>
 
     <name>Maven Embedded GlassFish Plugin</name>
     <description>Maven Embedded GlassFish Plugin</description>
@@ -79,7 +79,7 @@
         <connection>scm:git:https://github.com/eclipse-ee4j/glassfish-maven-embedded-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/eclipse-ee4j/glassfish-maven-embedded-plugin.git</developerConnection>
         <url>https://github.com/eclipse-ee4j/glassfish-maven-embedded-plugin</url>
-        <tag>8.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <build>
