@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2022, 2023 Contributors to Eclipse Foundation. All rights reserved.
+    Copyright (c) 2022, 2026 Contributors to Eclipse Foundation. All rights reserved.
 
     This program and the accompanying materials are made available under the
     terms of the Eclipse Public License v. 2.0, which is available at
@@ -14,6 +14,8 @@
     SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 */
 
+evaluate(new File(glassfishBuildScriptsDirectory, 'verify-http-check.groovy'))
+
 String [] buildLog = new File(basedir, 'build.log')
 
 glassfishVersion = glassfishVersion.replace(".", "\\.")
@@ -26,4 +28,3 @@ startedLines = buildLog.grep(~/^INFO: Started GlassFish.*/)
 assert startedLines.size() == 1: 'Expected messages about GlassFish started at INFO level'
 
 true
-

@@ -22,7 +22,7 @@ jobs:
 
     strategy:
       matrix:
-        java_version: [ 11 ]
+        java_version: [ 21 ]
 
     steps:
     - name: Checkout for build

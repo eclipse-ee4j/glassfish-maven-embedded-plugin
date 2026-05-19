@@ -31,8 +31,12 @@ public class StopMojo extends AbstractServerMojo {
 
     public void execute() throws MojoExecutionException, MojoFailureException {
         try {
-            stopGlassFish(serverID, getClassLoader());
-            cleanupClassLoader(serverID);
+            if (isForkedMode()) {
+                stopForkedGlassFish();
+            } else {
+                stopGlassFish(serverID, getClassLoader());
+                cleanupClassLoader(serverID);
+            }
         } catch (Exception ex) {
             throw new MojoExecutionException(ex.getMessage(), ex);
         }

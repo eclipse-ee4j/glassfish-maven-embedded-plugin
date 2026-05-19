@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Contributors to the Eclipse Foundation.
+ * Copyright (c) 2023, 2026 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -20,8 +20,8 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 import java.io.BufferedReader;
@@ -46,111 +46,162 @@ import java.util.Properties;
  *
  * @author bhavanishankar@dev.java.net
  */
-@Mojo(name = "run", defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
+@Mojo(name = "run")
 public class RunMojo extends AbstractDeployMojo {
 
+    /**
+     * Abstracts the GlassFish operations so the deploy loop can be shared
+     * between in-process and forked execution modes.
+     */
+    private interface GlassFishCommands {
+        void runAdminCommand(String commandLine) throws Exception;
+        void deploy(String archivePath, String[] params) throws Exception;
+        void undeploy(String appName) throws Exception;
+        void stop() throws Exception;
+    }
+
+    /**
+     * When true, GlassFish will be stopped after all admin commands and deployments have been executed,
+     * instead of waiting for user input. Can also be set via the Maven property {@code glassfish.run.stop}.
+     * Mainly intended for automated tests.
+     */
+    @Parameter(property = "glassfish.run.stop", defaultValue = "false")
+    private boolean stop;
+
+    /**
+     * When true, GlassFish is started in a forked JVM. Communication with the forked process happens
+     * via stdin/stdout. Can also be set via the Maven property {@code glassfish.fork}.
+     */
+    @Parameter(property = "glassfish.fork", defaultValue = "true")
+    private boolean fork;
+
     public void execute() throws MojoExecutionException, MojoFailureException {
+        if (fork) {
+            executeForked();
+        } else {
+            executeInProcess();
+        }
+    }
 
-        List<Properties> commands = getAdminCommandConfigurations();
+    private void executeForked() throws MojoExecutionException {
         try {
-            /**
-             * Start GlassFish server.
-             */
-            startGlassFish(serverID, getClassLoader(), getBootStrapProperties(),
-                    getGlassFishProperties());
+            startForkedGlassFish();
 
-            /**
-             * Execute all 'admin' goals.
-             */
-            for (Properties command : commands) {
-                runCommand(serverID, getClassLoader(),
-                        ((List<String>) command.get("commands")).toArray(new String[0]));
-            }
-
-            while (true) {
-                List<Properties> deployments = getDeploymentConfigurations();
-
-                /**
-                 * Execute all 'deploy' goals.
-                 */
-                for (Properties deployment : deployments) {
-                    doDeploy(serverID, getClassLoader(), getBootStrapProperties(),
-                            getGlassFishProperties(), new File(getApp(deployment.getProperty("app"))),
-                            getDeploymentParameters(deployment));
+            GlassFishCommands commands = new GlassFishCommands() {
+                public void runAdminCommand(String commandLine) throws Exception {
+                    sendForkedCommand(GlassFishForkedRunner.CMD_ADMIN + " " + commandLine);
                 }
-
-                /**
-                 * Wait for user input.
-                 */
-                System.out.println("Hit ENTER to redeploy, X to exit");
-                String str = new BufferedReader(new InputStreamReader(System.in)).readLine();
-
-                /**
-                 * Undeploy all the applications deployed via 'deploy' goal.
-                 */
-                for (Properties deployment : deployments) {
-                    doUndeploy(serverID, getClassLoader(), getBootStrapProperties(),
-                            getGlassFishProperties(), deployment.getProperty("name"), new String[0]);
-
+                public void deploy(String archivePath, String[] params) throws Exception {
+                    String paramStr = params.length > 0 ? " " + String.join(" ", params) : "";
+                    sendForkedCommand(GlassFishForkedRunner.CMD_DEPLOY + " " + archivePath + paramStr);
                 }
-                /**
-                 * Exit from embedded-glassfish:run if 'X' is entered.
-                 */
-                if (str.equalsIgnoreCase("X")) {
-                    break;
+                public void undeploy(String appName) throws Exception {
+                    sendForkedCommand(GlassFishForkedRunner.CMD_UNDEPLOY + " " + appName);
                 }
-            }
-            /**
-             * Stop GlassFish server
-             */
-            stopGlassFish(serverID, getClassLoader());
+                public void stop() throws Exception {
+                    stopForkedGlassFish();
+                }
+            };
+
+            runDeployLoop(commands);
         } catch (Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
+    }
 
+    /**
+     * Shared deploy/undeploy/redeploy loop used by both in-process and forked execution modes.
+     * Runs admin commands, then repeatedly deploys, optionally waits for user input to redeploy,
+     * and finally stops GlassFish.
+     */
+    private void runDeployLoop(GlassFishCommands gf) throws Exception {
+        for (Properties command : getAdminCommandConfigurations()) {
+            List<String> cmds = (List<String>) command.get("commands");
+            if (cmds != null) {
+                for (String cmd : cmds) {
+                    gf.runAdminCommand(cmd);
+                }
+            }
+        }
+
+        while (true) {
+            List<Properties> deployments = getDeploymentConfigurations();
+
+            for (Properties deployment : deployments) {
+                // if app not defined, the default app will be deployed
+                gf.deploy(getApp(deployment.getProperty("app")), getDeploymentParameters(deployment));
+            }
+
+            if (stop) {
+                break;
+            }
+
+            System.out.println("Hit ENTER to redeploy, X to exit");
+            String input = new BufferedReader(new InputStreamReader(System.in)).readLine();
+
+            if (input.equalsIgnoreCase("X")) {
+                break;
+            }
+        }
+
+        gf.stop();
+    }
+
+    private void executeInProcess() throws MojoExecutionException, MojoFailureException {
+        try {
+            startGlassFish(serverID, getClassLoader(), getBootStrapProperties(),
+                    getGlassFishProperties());
+
+            GlassFishCommands commands = new GlassFishCommands() {
+                public void runAdminCommand(String commandLine) throws Exception {
+                    runCommand(serverID, getClassLoader(), new String[]{commandLine});
+                }
+                public void deploy(String archivePath, String[] params) throws Exception {
+                    doDeploy(serverID, getClassLoader(), getBootStrapProperties(),
+                            getGlassFishProperties(), new File(archivePath), params);
+                }
+                public void undeploy(String appName) throws Exception {
+                    doUndeploy(serverID, getClassLoader(), getBootStrapProperties(),
+                            getGlassFishProperties(), appName, new String[0]);
+                }
+                public void stop() throws Exception {
+                    stopGlassFish(serverID, getClassLoader());
+                }
+            };
+
+            runDeployLoop(commands);
+        } catch (Exception e) {
+            throw new MojoExecutionException(e.getMessage(), e);
+        }
     }
 
     // Retrieve all the "admin" goals defined in the plugin.
     private List<Properties> getAdminCommandConfigurations() {
-
-        List<Properties> deployments = new ArrayList<Properties>();
-
-        Plugin embeddedPlugin = getPlugin("embedded-glassfish-maven-plugin");
-
-        List<PluginExecution> deployGoals = getGoals(embeddedPlugin, "admin");
-
-        for (PluginExecution pluginExecution : deployGoals) {
-            Properties configurations = getConfigurations(
-                    pluginExecution, embeddedPlugin, "commands");
-            deployments.add(configurations);
-        }
-
-        return deployments;
+        return getGoalConfigurations("admin", "commands");
     }
 
     // Retrieve all the "deploy" goals defined in the plugin.
     private List<Properties> getDeploymentConfigurations() {
+        return getGoalConfigurations("deploy", "deploymentParams");
+    }
 
-        List<Properties> deployments = new ArrayList<>();
+    private List<Properties> getGoalConfigurations(String goalName, String nonLeafNodeName) {
+        List<Properties> result = new ArrayList<>();
 
         Plugin embeddedPlugin = getPlugin("embedded-glassfish-maven-plugin");
 
-        List<PluginExecution> deployGoals = getGoals(embeddedPlugin, "deploy");
+        List<PluginExecution> executions = getGoals(embeddedPlugin, goalName);
 
-        for (PluginExecution pluginExecution : deployGoals) {
-            Properties configurations = getConfigurations(
-                    pluginExecution, embeddedPlugin, "deploymentParams");
-            deployments.add(configurations);
+        for (PluginExecution pluginExecution : executions) {
+            result.add(getConfigurations(pluginExecution, embeddedPlugin, nonLeafNodeName));
         }
 
-        /* If no deploy goal specified, add a default deployment */
-        if (deployGoals.isEmpty()) {
-            Properties configurations = getConfigurations(
-                    null, embeddedPlugin, "deploymentParams");
-            deployments.add(configurations);
+        /* If no matching goal specified, fall back to plugin-level configuration */
+        if (executions.isEmpty()) {
+            result.add(getConfigurations(null, embeddedPlugin, nonLeafNodeName));
         }
 
-        return deployments;
+        return result;
     }
 
     /**

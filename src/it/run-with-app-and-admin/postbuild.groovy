@@ -14,12 +14,12 @@
     SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 */
 
-evaluate(new File(glassfishBuildScriptsDirectory, 'verify-http-check.groovy'))
-
 String [] buildLog = new File(basedir, 'build.log')
 
-startedLines = buildLog.grep(~/^INFO: Ran command.*SUCCESS.*/)
+startedLines = buildLog.grep(~/^INFO: Started GlassFish.*/)
+assert startedLines.size() == 1: 'Expected messages about GlassFish started at INFO level'
 
-assert startedLines.size() == 2: 'Expected messages about running admin commands in build log'
+adminCommandLines = buildLog.grep(~/^INFO: Ran command.*create-jdbc-resource.*SUCCESS.*/)
+assert adminCommandLines.size() == 1: 'Expected messages about create-jdbc-resource admin command at INFO level'
 
 true
