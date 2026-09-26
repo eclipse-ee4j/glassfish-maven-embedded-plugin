@@ -38,9 +38,7 @@ public class DeployMojo extends AbstractDeployMojo {
     public void execute() throws MojoExecutionException, MojoFailureException {
         try {
             if (isForkedMode()) {
-                String[] params = getDeploymentParameters();
-                String paramStr = params.length > 0 ? " " + String.join(" ", params) : "";
-                sendForkedCommand(GlassFishForkedRunner.CMD_DEPLOY + " " + getApp() + paramStr);
+                sendForkedCommand(GlassFishForkedRunner.buildDeployCommand(getApp(), getDeploymentParameters()));
             } else {
                 doDeploy(serverID, getClassLoader(), getBootStrapProperties(),
                         getGlassFishProperties(), new File(getApp()), getDeploymentParameters());

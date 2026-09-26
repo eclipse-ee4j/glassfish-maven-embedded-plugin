@@ -92,11 +92,10 @@ public class RunMojo extends AbstractDeployMojo {
                     sendForkedCommand(GlassFishForkedRunner.CMD_ADMIN + " " + commandLine);
                 }
                 public void deploy(String archivePath, String[] params) throws Exception {
-                    String paramStr = params.length > 0 ? " " + String.join(" ", params) : "";
-                    sendForkedCommand(GlassFishForkedRunner.CMD_DEPLOY + " " + archivePath + paramStr);
+                    sendForkedCommand(GlassFishForkedRunner.buildDeployCommand(archivePath, params));
                 }
                 public void undeploy(String appName) throws Exception {
-                    sendForkedCommand(GlassFishForkedRunner.CMD_UNDEPLOY + " " + appName);
+                    sendForkedCommand(GlassFishForkedRunner.buildUndeployCommand(appName));
                 }
                 public void stop() throws Exception {
                     stopForkedGlassFish();
