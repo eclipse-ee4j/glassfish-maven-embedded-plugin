@@ -34,7 +34,7 @@
     <url>https://projects.eclipse.org/projects/ee4j.glassfish</url>
 
     <properties>
-        <target.maven.version>3.6.3</target.maven.version>
+        <target.maven.version>3.10.0</target.maven.version>
         <invoker.streamLogsOnFailures>true</invoker.streamLogsOnFailures>
         <tested.glassfish.version>7.1.0</tested.glassfish.version>
         <glassfish.http.port>8081</glassfish.http.port>
