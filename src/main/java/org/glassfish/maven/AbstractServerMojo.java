@@ -17,21 +17,6 @@
 
 package org.glassfish.maven;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.factory.ArtifactFactory;
-import org.apache.maven.artifact.metadata.ArtifactMetadataSource;
-import org.apache.maven.artifact.metadata.ResolutionGroup;
-import org.apache.maven.artifact.repository.ArtifactRepository;
-import org.apache.maven.artifact.resolver.ArtifactResolver;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.Component;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.project.MavenProjectBuilder;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -45,12 +30,27 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
+
+import javax.inject.Inject;
+
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.factory.ArtifactFactory;
+import org.apache.maven.artifact.metadata.ArtifactMetadataSource;
+import org.apache.maven.artifact.metadata.ResolutionGroup;
+import org.apache.maven.artifact.repository.ArtifactRepository;
+import org.apache.maven.artifact.resolver.ArtifactResolver;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.MavenProjectBuilder;
 
 /**
  * @author bhavanishankar@dev.java.net
@@ -294,7 +294,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * This is automatically injected by the Maven framework.
      */
     @Parameter(property = "project.remoteArtifactRepositories")
-    protected List remoteRepositories;
+    protected List<ArtifactRepository> remoteRepositories;
 
     /**
      * The maven project.
@@ -308,19 +308,19 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     @Parameter(defaultValue = "${plugin.artifacts}")
     private List<Artifact> artifacts; // pluginDependencies
 
-    @Component
+    @Inject
     protected MavenProjectBuilder projectBuilder;
 
-    @Component
+    @Inject
     protected ArtifactResolver resolver;
 
     /**
      * Used to construct artifacts for deletion/resolution...
      */
-    @Component
+    @Inject
     protected ArtifactFactory factory;
 
-    @Component
+    @Inject
     private ArtifactMetadataSource artifactMetadataSource;
 
     /*=======================================
@@ -337,6 +337,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     private static BufferedReader forkedReader;
     private static volatile CountDownLatch commandLatch;
 
+    @Override
     public abstract void execute() throws MojoExecutionException, MojoFailureException;
 
     protected ClassLoader getClassLoader() throws MojoExecutionException {
@@ -491,7 +492,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     private Artifact resolveGlassFishArtifact() throws Exception {
         Artifact gfUber = getUberFromSpecifiedDependency();
         if (gfUber == null) {
-            Artifact gfMvnPlugin = (Artifact) project.getPluginArtifactMap().get(thisArtifactId);
+            Artifact gfMvnPlugin = project.getPluginArtifactMap().get(thisArtifactId);
             String version = getGlassfishVersion(gfMvnPlugin);
             gfUber = factory.createArtifact(EMBEDDED_GROUP_ID, EMBEDDED_ALL, version, "compile", "jar");
             resolver.resolve(gfUber, remoteRepositories, localRepository);
