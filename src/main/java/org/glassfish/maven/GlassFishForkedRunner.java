@@ -19,6 +19,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Properties;
 
 /**
@@ -140,8 +144,8 @@ public class GlassFishForkedRunner {
     private static void handleDeploy(String serverId, Properties bootstrapProps,
             Properties glassfishProps, String rest) {
         String[] parts = rest.split(" ", 2);
-        File archive = new File(parts[0]);
-        String[] deployParams = parts.length > 1 ? parts[1].split(" ") : new String[0];
+        File archive = new File(decode(parts[0]));
+        String[] deployParams = parts.length > 1 ? decodeAll(parts[1].split(" ")) : new String[0];
         try {
             PluginUtil.doDeploy(serverId, GlassFishForkedRunner.class.getClassLoader(),
                     bootstrapProps, glassfishProps, archive, deployParams);
@@ -154,8 +158,8 @@ public class GlassFishForkedRunner {
     private static void handleUndeploy(String serverId, Properties bootstrapProps,
             Properties glassfishProps, String rest) {
         String[] parts = rest.split(" ", 2);
-        String appName = parts[0];
-        String[] undeployParams = parts.length > 1 ? parts[1].split(" ") : new String[0];
+        String appName = decode(parts[0]);
+        String[] undeployParams = parts.length > 1 ? decodeAll(parts[1].split(" ")) : new String[0];
         try {
             PluginUtil.doUndeploy(serverId, GlassFishForkedRunner.class.getClassLoader(),
                     bootstrapProps, glassfishProps, appName, undeployParams);
@@ -178,5 +182,37 @@ public class GlassFishForkedRunner {
             }
         }
         return result;
+    }
+
+    /**
+     * Builds a {@code DEPLOY} command line, encoding the archive path and each parameter
+     * individually so that a space inside any of them survives the {@code " "}-delimited protocol.
+     */
+    static String buildDeployCommand(String archivePath, String[] params) {
+        StringBuilder command = new StringBuilder(CMD_DEPLOY).append(' ').append(encode(archivePath));
+        for (String param : params) {
+            command.append(' ').append(encode(param));
+        }
+        return command.toString();
+    }
+
+    /**
+     * Builds an {@code UNDEPLOY} command line, encoding the app name so a space in it
+     * survives the {@code " "}-delimited protocol.
+     */
+    static String buildUndeployCommand(String appName) {
+        return CMD_UNDEPLOY + " " + encode(appName);
+    }
+
+    private static String encode(String token) {
+        return URLEncoder.encode(token, StandardCharsets.UTF_8);
+    }
+
+    private static String decode(String token) {
+        return URLDecoder.decode(token, StandardCharsets.UTF_8);
+    }
+
+    private static String[] decodeAll(String[] tokens) {
+        return Arrays.stream(tokens).map(GlassFishForkedRunner::decode).toArray(String[]::new);
     }
 }
