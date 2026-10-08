@@ -34,9 +34,9 @@
     <url>https://projects.eclipse.org/projects/ee4j.glassfish</url>
 
     <properties>
-        <target.maven.version>3.6.3</target.maven.version>
+        <target.maven.version>3.9.16</target.maven.version>
         <invoker.streamLogsOnFailures>true</invoker.streamLogsOnFailures>
-        <tested.glassfish.version>7.1.0</tested.glassfish.version>
+        <tested.glassfish.version>8.0.5</tested.glassfish.version>
         <glassfish.http.port>8081</glassfish.http.port>
         <glassfish.build.scripts.directory>${project.build.directory}/its-common</glassfish.build.scripts.directory>
     </properties>
@@ -68,7 +68,6 @@
     </scm>
 
     <build>
-        <defaultGoal>install</defaultGoal>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -235,7 +234,7 @@
         <dependency>
             <groupId>org.glassfish.main.common</groupId>
             <artifactId>simple-glassfish-api</artifactId>
-            <version>8.0.0</version>
+            <version>8.0.5</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>
