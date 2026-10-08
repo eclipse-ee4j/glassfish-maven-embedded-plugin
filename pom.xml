@@ -45,21 +45,6 @@
         <maven>${target.maven.version}</maven>
     </prerequisites>
 
-    <contributors>
-        <contributor>
-            <name>Bhavanishankar</name>
-        </contributor>
-    </contributors>
-
-    <developers>
-        <developer>
-            <id>yaminikb</id>
-            <name>Yamini K B</name>
-            <organization>Oracle Corporation</organization>
-            <organizationUrl>http://www.oracle.com</organizationUrl>
-        </developer>
-    </developers>
-
     <mailingLists>
         <mailingList>
             <name>Glassfish dev mailing list</name>
