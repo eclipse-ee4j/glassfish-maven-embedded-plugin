@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2026 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -35,13 +36,14 @@ import java.io.File;
 @Mojo(name = "deploy", defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST)
 public class DeployMojo extends AbstractDeployMojo {
 
+    @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         try {
             if (isForkedMode()) {
                 sendForkedCommand(GlassFishForkedRunner.buildDeployCommand(getApp(), getDeploymentParameters()));
             } else {
-                doDeploy(serverID, getClassLoader(), getBootStrapProperties(),
-                        getGlassFishProperties(), new File(getApp()), getDeploymentParameters());
+                doDeploy(serverID, getClassLoader(), getBootStrapProperties(), getGlassFishProperties(),
+                    new File(getApp()), getDeploymentParameters());
             }
         } catch (Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
