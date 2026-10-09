@@ -390,7 +390,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     private void printClassPaths(String msg, URL... urls) {
         System.out.println(msg);
         for (URL u : urls) {
-            System.out.println("ClassPath Element : " + u);
+            System.out.println("ClassPath Element: " + u);
         }
     }
 
@@ -836,17 +836,16 @@ public abstract class AbstractServerMojo extends AbstractMojo {
         forkedReader = null;
     }
 
-    public void startGlassFish(String serverId, ClassLoader cl, Properties bootstrapProperties,
-                               Properties glassfishProperties) throws Exception {
-        Class clazz = cl.loadClass(PluginUtil.class.getName());
-        Method m = clazz.getMethod("startGlassFish", new Class[]{String.class,
-                ClassLoader.class, Properties.class, Properties.class});
-        m.invoke(null, new Object[]{serverId, cl, bootstrapProperties, glassfishProperties});
+    public void startGlassFish(String serverId, ClassLoader cl) throws Exception {
+        Class<?> clazz = cl.loadClass(PluginUtil.class.getName());
+        Method m = clazz.getMethod("startGlassFish",
+            new Class[] {String.class, ClassLoader.class, Properties.class, Properties.class});
+        m.invoke(null, new Object[] {serverId, cl, getBootStrapProperties(), getGlassFishProperties()});
     }
 
     public void stopGlassFish(String serverId, ClassLoader cl) throws Exception {
-        Class clazz = cl.loadClass(PluginUtil.class.getName());
-        Method m = clazz.getMethod("stopGlassFish", new Class[]{String.class});
+        Class<?> clazz = cl.loadClass(PluginUtil.class.getName());
+        Method m = clazz.getMethod("stopGlassFish", new Class[] {String.class});
         m.invoke(null, new Object[]{serverId});
     }
 

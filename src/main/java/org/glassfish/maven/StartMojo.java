@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2026 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -39,13 +40,13 @@ public class StartMojo extends AbstractServerMojo {
     @Parameter(property = "glassfish.fork", defaultValue = "true")
     private boolean fork;
 
+    @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         try {
             if (fork) {
                 startForkedGlassFish();
             } else {
-                startGlassFish(serverID, getClassLoader(), getBootStrapProperties(),
-                        getGlassFishProperties());
+                startGlassFish(serverID, getClassLoader());
             }
         } catch (Exception ex) {
             throw new MojoExecutionException(ex.getMessage(), ex);
