@@ -559,12 +559,17 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     }
 
     protected Properties getBootStrapProperties() {
-        setSystemProperties();
+        return getBootStrapProperties(isForkedMode() ? null : loadSystemProperties());
+    }
+
+    protected Properties getBootStrapProperties(Properties systemProps) {
+        if (systemProps != null) {
+            setSystemProperties(systemProps);
+        }
         Properties props = new Properties();
         props.setProperty(PLATFORM_KEY, "Static");
         if (installRoot != null) {
-            props.setProperty(INSTALL_ROOT_PROP_NAME,
-                    new File(installRoot).getAbsolutePath());
+            props.setProperty(INSTALL_ROOT_PROP_NAME, new File(installRoot).getAbsolutePath());
         }
         load(bootstrapPropertiesFile, props);
         load(bootstrapProperties, props);
@@ -595,10 +600,14 @@ public abstract class AbstractServerMojo extends AbstractMojo {
         }
     }
 
-    private void setSystemProperties() {
+    private Properties loadSystemProperties() {
         Properties sysProps = new Properties();
         load(systemPropertiesFile, sysProps);
         load(systemProperties, sysProps);
+        return sysProps;
+    }
+
+    private void setSystemProperties(Properties sysProps) {
         for (Object obj : sysProps.keySet()) {
             String key = (String) obj;
             String currentVal = System.getProperty(key);
@@ -704,7 +713,8 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * then stores the process and streams in static fields for use by subsequent goals.
      */
     protected void startForkedGlassFish() throws Exception {
-        Properties bootstrapProps = getBootStrapProperties();
+        Properties sysProps = loadSystemProperties();
+        Properties bootstrapProps = getBootStrapProperties(sysProps);
         Properties glassfishProps = getGlassFishProperties();
 
         File configFile = writeForkedConfig(bootstrapProps, glassfishProps);
@@ -799,6 +809,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
                 command.add(arg);
             }
         }
+        loadSystemProperties().forEach((k, v) -> command.add("-D" + k + '=' + v));
     }
 
     /**
