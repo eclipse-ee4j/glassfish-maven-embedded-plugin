@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2026 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -16,8 +17,6 @@
 
 package org.glassfish.maven;
 
-import org.glassfish.embeddable.*;
-
 import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,6 +24,15 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.glassfish.embeddable.BootstrapProperties;
+import org.glassfish.embeddable.CommandResult;
+import org.glassfish.embeddable.CommandRunner;
+import org.glassfish.embeddable.Deployer;
+import org.glassfish.embeddable.GlassFish;
+import org.glassfish.embeddable.GlassFish.Status;
+import org.glassfish.embeddable.GlassFishProperties;
+import org.glassfish.embeddable.GlassFishRuntime;
 
 /**
  * @author bhavanishankar@dev.java.net
@@ -48,7 +56,7 @@ public class PluginUtil {
                                            Properties glassfishProperties) throws Exception {
         GlassFish gf = getGlassFish(serverId, bootstrapClassLoader,
                 bootstrapProperties, glassfishProperties);
-        if (gf.getStatus() != GlassFish.Status.STARTED) {
+        if (gf.getStatus() != Status.STARTED && gf.getStatus() != Status.STARTING) {
             long startTime = System.currentTimeMillis();
             gf.start();
             logger.logp(Level.INFO, "PluginUtil", "startGlassFish", "Started GlassFish ServerId = {0}, " +
@@ -60,7 +68,7 @@ public class PluginUtil {
 
     public static void stopGlassFish(String serverId) throws Exception {
         GlassFish gf = gfMap.remove(serverId);
-        if (gf != null && gf.getStatus().equals(GlassFish.Status.STARTED)) {
+        if (gf != null && gf.getStatus().equals(Status.STARTED)) {
             gf.stop();
             if (gfr != null) {
                 gfr.shutdown();
@@ -115,10 +123,6 @@ public class PluginUtil {
             logger.logp(Level.FINE, "PluginUtil", "getGlassFish", "Creating GlassFish ServerId = {0}", serverId);
             BootstrapProperties bootstrapOptions = new BootstrapProperties(bootstrapProperties);
             gfr = gfr != null ? gfr : GlassFishRuntime.bootstrap(bootstrapOptions, bootstrapClassLoader);
-/*
-            GlassFishRuntime gfr = GlassFishRuntime.bootstrap(bootstrapOptions,
-                    PluginUtil.class.getClassLoader());
-*/
             logger.logp(Level.FINE, "PluginUtil", "getGlassFish", "Created GlassFishRuntime " +
                     "ServerId = {0}, GlassFishRuntime = {1}, TimeTaken = {2} ms",
                     new Object[]{serverId, gfr, System.currentTimeMillis() - startTime});
@@ -130,6 +134,8 @@ public class PluginUtil {
                     new Object[]{serverId, bootstrapProperties, gfr, glassfishProperties,
                             gf, gf.getStatus(), System.currentTimeMillis() - startTime});
             gfMap.put(serverId, gf);
+        } else {
+            logger.log(Level.FINE, "Found existing GlassFish: " + gf);
         }
         return gf;
     }
