@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2026 Contributors to the Eclipse Foundation.
  * Copyright (c) 2010, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
@@ -33,10 +34,15 @@ import org.apache.maven.plugins.annotations.Mojo;
 @Mojo(name = "undeploy", defaultPhase = LifecyclePhase.POST_INTEGRATION_TEST)
 public class UndeployMojo extends AbstractDeployMojo {
 
+    @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         try {
-            doUndeploy(serverID, getClassLoader(), getBootStrapProperties(),
-                    getGlassFishProperties(), name, getUndeploymentParameters());
+            if (isForkedMode()) {
+                sendForkedCommand(GlassFishForkedRunner.buildUndeployCommand(name));
+            } else {
+                doUndeploy(serverID, getClassLoader(), getBootStrapProperties(), getGlassFishProperties(),
+                    name, getUndeploymentParameters());
+            }
         } catch (Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }

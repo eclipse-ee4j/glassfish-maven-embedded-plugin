@@ -17,21 +17,6 @@
 
 package org.glassfish.maven;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.factory.ArtifactFactory;
-import org.apache.maven.artifact.metadata.ArtifactMetadataSource;
-import org.apache.maven.artifact.metadata.ResolutionGroup;
-import org.apache.maven.artifact.repository.ArtifactRepository;
-import org.apache.maven.artifact.resolver.ArtifactResolver;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.Component;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.project.MavenProjectBuilder;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -45,12 +30,27 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
+
+import javax.inject.Inject;
+
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.factory.ArtifactFactory;
+import org.apache.maven.artifact.metadata.ArtifactMetadataSource;
+import org.apache.maven.artifact.metadata.ResolutionGroup;
+import org.apache.maven.artifact.repository.ArtifactRepository;
+import org.apache.maven.artifact.resolver.ArtifactResolver;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.MavenProjectBuilder;
 
 /**
  * @author bhavanishankar@dev.java.net
@@ -294,7 +294,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * This is automatically injected by the Maven framework.
      */
     @Parameter(property = "project.remoteArtifactRepositories")
-    protected List remoteRepositories;
+    protected List<ArtifactRepository> remoteRepositories;
 
     /**
      * The maven project.
@@ -308,19 +308,19 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     @Parameter(defaultValue = "${plugin.artifacts}")
     private List<Artifact> artifacts; // pluginDependencies
 
-    @Component
+    @Inject
     protected MavenProjectBuilder projectBuilder;
 
-    @Component
+    @Inject
     protected ArtifactResolver resolver;
 
     /**
      * Used to construct artifacts for deletion/resolution...
      */
-    @Component
+    @Inject
     protected ArtifactFactory factory;
 
-    @Component
+    @Inject
     private ArtifactMetadataSource artifactMetadataSource;
 
     /*=======================================
@@ -337,6 +337,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     private static BufferedReader forkedReader;
     private static volatile CountDownLatch commandLatch;
 
+    @Override
     public abstract void execute() throws MojoExecutionException, MojoFailureException;
 
     protected ClassLoader getClassLoader() throws MojoExecutionException {
@@ -389,7 +390,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     private void printClassPaths(String msg, URL... urls) {
         System.out.println(msg);
         for (URL u : urls) {
-            System.out.println("ClassPath Element : " + u);
+            System.out.println("ClassPath Element: " + u);
         }
     }
 
@@ -491,7 +492,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     private Artifact resolveGlassFishArtifact() throws Exception {
         Artifact gfUber = getUberFromSpecifiedDependency();
         if (gfUber == null) {
-            Artifact gfMvnPlugin = (Artifact) project.getPluginArtifactMap().get(thisArtifactId);
+            Artifact gfMvnPlugin = project.getPluginArtifactMap().get(thisArtifactId);
             String version = getGlassfishVersion(gfMvnPlugin);
             gfUber = factory.createArtifact(EMBEDDED_GROUP_ID, EMBEDDED_ALL, version, "compile", "jar");
             resolver.resolve(gfUber, remoteRepositories, localRepository);
@@ -558,12 +559,17 @@ public abstract class AbstractServerMojo extends AbstractMojo {
     }
 
     protected Properties getBootStrapProperties() {
-        setSystemProperties();
+        return getBootStrapProperties(isForkedMode() ? null : loadSystemProperties());
+    }
+
+    protected Properties getBootStrapProperties(Properties systemProps) {
+        if (systemProps != null) {
+            setSystemProperties(systemProps);
+        }
         Properties props = new Properties();
         props.setProperty(PLATFORM_KEY, "Static");
         if (installRoot != null) {
-            props.setProperty(INSTALL_ROOT_PROP_NAME,
-                    new File(installRoot).getAbsolutePath());
+            props.setProperty(INSTALL_ROOT_PROP_NAME, new File(installRoot).getAbsolutePath());
         }
         load(bootstrapPropertiesFile, props);
         load(bootstrapProperties, props);
@@ -587,27 +593,21 @@ public abstract class AbstractServerMojo extends AbstractMojo {
         if (propertiesFile == null || p == null) {
             return;
         }
-        FileInputStream stream = null;
-        try {
-            stream = new FileInputStream(propertiesFile);
+        try (FileInputStream stream = new FileInputStream(propertiesFile)) {
             p.load(stream);
         } catch (Exception ex) {
             System.err.println(ex);
-        } finally {
-            if (stream != null) {
-                try {
-                    stream.close();
-                } catch (Exception ex) {
-                    System.err.println(ex);
-                }
-            }
         }
     }
 
-    private void setSystemProperties() {
+    private Properties loadSystemProperties() {
         Properties sysProps = new Properties();
         load(systemPropertiesFile, sysProps);
         load(systemProperties, sysProps);
+        return sysProps;
+    }
+
+    private void setSystemProperties(Properties sysProps) {
         for (Object obj : sysProps.keySet()) {
             String key = (String) obj;
             String currentVal = System.getProperty(key);
@@ -713,7 +713,8 @@ public abstract class AbstractServerMojo extends AbstractMojo {
      * then stores the process and streams in static fields for use by subsequent goals.
      */
     protected void startForkedGlassFish() throws Exception {
-        Properties bootstrapProps = getBootStrapProperties();
+        Properties sysProps = loadSystemProperties();
+        Properties bootstrapProps = getBootStrapProperties(sysProps);
         Properties glassfishProps = getGlassFishProperties();
 
         File configFile = writeForkedConfig(bootstrapProps, glassfishProps);
@@ -808,6 +809,7 @@ public abstract class AbstractServerMojo extends AbstractMojo {
                 command.add(arg);
             }
         }
+        loadSystemProperties().forEach((k, v) -> command.add("-D" + k + '=' + v));
     }
 
     /**
@@ -835,17 +837,16 @@ public abstract class AbstractServerMojo extends AbstractMojo {
         forkedReader = null;
     }
 
-    public void startGlassFish(String serverId, ClassLoader cl, Properties bootstrapProperties,
-                               Properties glassfishProperties) throws Exception {
-        Class clazz = cl.loadClass(PluginUtil.class.getName());
-        Method m = clazz.getMethod("startGlassFish", new Class[]{String.class,
-                ClassLoader.class, Properties.class, Properties.class});
-        m.invoke(null, new Object[]{serverId, cl, bootstrapProperties, glassfishProperties});
+    public void startGlassFish(String serverId, ClassLoader cl) throws Exception {
+        Class<?> clazz = cl.loadClass(PluginUtil.class.getName());
+        Method m = clazz.getMethod("startGlassFish",
+            new Class[] {String.class, ClassLoader.class, Properties.class, Properties.class});
+        m.invoke(null, new Object[] {serverId, cl, getBootStrapProperties(), getGlassFishProperties()});
     }
 
     public void stopGlassFish(String serverId, ClassLoader cl) throws Exception {
-        Class clazz = cl.loadClass(PluginUtil.class.getName());
-        Method m = clazz.getMethod("stopGlassFish", new Class[]{String.class});
+        Class<?> clazz = cl.loadClass(PluginUtil.class.getName());
+        Method m = clazz.getMethod("stopGlassFish", new Class[] {String.class});
         m.invoke(null, new Object[]{serverId});
     }
 

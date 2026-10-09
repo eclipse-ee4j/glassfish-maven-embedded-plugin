@@ -75,6 +75,7 @@ public class RunMojo extends AbstractDeployMojo {
     @Parameter(property = "glassfish.fork", defaultValue = "true")
     private boolean fork;
 
+    @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         if (fork) {
             executeForked();
@@ -88,15 +89,19 @@ public class RunMojo extends AbstractDeployMojo {
             startForkedGlassFish();
 
             GlassFishCommands commands = new GlassFishCommands() {
+                @Override
                 public void runAdminCommand(String commandLine) throws Exception {
                     sendForkedCommand(GlassFishForkedRunner.CMD_ADMIN + " " + commandLine);
                 }
+                @Override
                 public void deploy(String archivePath, String[] params) throws Exception {
                     sendForkedCommand(GlassFishForkedRunner.buildDeployCommand(archivePath, params));
                 }
+                @Override
                 public void undeploy(String appName) throws Exception {
                     sendForkedCommand(GlassFishForkedRunner.buildUndeployCommand(appName));
                 }
+                @Override
                 public void stop() throws Exception {
                     stopForkedGlassFish();
                 }
@@ -148,21 +153,24 @@ public class RunMojo extends AbstractDeployMojo {
 
     private void executeInProcess() throws MojoExecutionException, MojoFailureException {
         try {
-            startGlassFish(serverID, getClassLoader(), getBootStrapProperties(),
-                    getGlassFishProperties());
+            startGlassFish(serverID, getClassLoader());
 
             GlassFishCommands commands = new GlassFishCommands() {
+                @Override
                 public void runAdminCommand(String commandLine) throws Exception {
                     runCommand(serverID, getClassLoader(), new String[]{commandLine});
                 }
+                @Override
                 public void deploy(String archivePath, String[] params) throws Exception {
                     doDeploy(serverID, getClassLoader(), getBootStrapProperties(),
                             getGlassFishProperties(), new File(archivePath), params);
                 }
+                @Override
                 public void undeploy(String appName) throws Exception {
                     doUndeploy(serverID, getClassLoader(), getBootStrapProperties(),
                             getGlassFishProperties(), appName, new String[0]);
                 }
+                @Override
                 public void stop() throws Exception {
                     stopGlassFish(serverID, getClassLoader());
                 }
