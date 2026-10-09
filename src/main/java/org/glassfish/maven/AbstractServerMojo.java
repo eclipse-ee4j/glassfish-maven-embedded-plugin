@@ -588,20 +588,10 @@ public abstract class AbstractServerMojo extends AbstractMojo {
         if (propertiesFile == null || p == null) {
             return;
         }
-        FileInputStream stream = null;
-        try {
-            stream = new FileInputStream(propertiesFile);
+        try (FileInputStream stream = new FileInputStream(propertiesFile)) {
             p.load(stream);
         } catch (Exception ex) {
             System.err.println(ex);
-        } finally {
-            if (stream != null) {
-                try {
-                    stream.close();
-                } catch (Exception ex) {
-                    System.err.println(ex);
-                }
-            }
         }
     }
 
