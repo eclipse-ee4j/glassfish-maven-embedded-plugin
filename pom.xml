@@ -16,37 +16,22 @@
 
 -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.eclipse.ee4j</groupId>
         <artifactId>project</artifactId>
-        <version>1.0.5</version>
+        <version>2.0.6</version>
     </parent>
 
     <groupId>org.glassfish.embedded</groupId>
     <artifactId>maven-embedded-glassfish-plugin</artifactId>
-    <packaging>maven-plugin</packaging>
-    <version>5.1</version>
+    <packaging>pom</packaging>
+    <version>7.0</version>
 
     <name>Maven Embedded GlassFish Plugin</name>
     <description>Maven Embedded GlassFish Plugin</description>
     <url>https://projects.eclipse.org/projects/ee4j.glassfish</url>
-    
-    <contributors>
-        <contributor>
-            <name>Bhavanishankar</name>
-        </contributor>
-    </contributors>
-    
-    <developers>
-        <developer>
-            <id>yaminikb</id>
-            <name>Yamini K B</name>
-            <organization>Oracle Corporation</organization>
-            <organizationUrl>http://www.oracle.com</organizationUrl>
-        </developer>
-    </developers>
 
     <mailingLists>
         <mailingList>
@@ -61,7 +46,13 @@
     <issueManagement>
         <system>github</system>
         <url>https://github.com/eclipse-ee4j/glassfish-maven-embedded-plugin/issues</url>
-    </issueManagement>    
+    </issueManagement>
+
+    <distributionManagement>
+        <relocation>
+            <artifactId>embedded-glassfish-maven-plugin</artifactId>
+        </relocation>
+    </distributionManagement>
 
     <scm>
         <connection>scm:git:https://github.com/eclipse-ee4j/glassfish-maven-embedded-plugin.git</connection>
@@ -69,115 +60,6 @@
         <url>https://github.com/eclipse-ee4j/glassfish-maven-embedded-plugin</url>
         <tag>HEAD</tag>
     </scm>
-
-    <build>
-        <defaultGoal>install</defaultGoal>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.7.0</version>
-                <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-plugin-plugin</artifactId>
-                <version>3.5.2</version>
-                <configuration>
-                    <goalPrefix>embedded-glassfish</goalPrefix>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>2.1</version>
-                <configuration>
-                    <includePom>true</includePom>
-                </configuration>
-                <executions>
-                    <execution>
-                       <id>attach-sources</id>
-                       <goals>
-                           <goal>jar-no-fork</goal> 
-                       </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.10.1</version>
-                <configuration>
-                    <additionalparam>-Xdoclint:none</additionalparam>
-                </configuration>
-                <executions>
-                  <execution>
-                    <id>attach-javadocs</id>
-                      <goals>
-                          <goal>jar</goal>
-                      </goals>
-                  </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>                           
-                <artifactId>maven-release-plugin</artifactId>                         
-                 <version>2.5.2</version>
-                <configuration>                                                       
-                    <mavenExecutorId>forked-path</mavenExecutorId>                
-                    <useReleaseProfile>false</useReleaseProfile>                  
-                    <tagNameFormat>@{project.version}</tagNameFormat>
-                    <arguments>${release.arguments}</arguments>
-                </configuration>                                                      
-                <dependencies>
-                    <dependency>
-                        <groupId>org.apache.maven.scm</groupId>
-                        <artifactId>maven-scm-provider-gitexe</artifactId>
-                        <version>1.9.4</version>
-                    </dependency>
-                </dependencies>
-            </plugin>                    
-        </plugins>
-        <extensions>
-            <extension>
-                <groupId>org.jvnet.wagon-svn</groupId>
-                <artifactId>wagon-svn</artifactId>
-                <version>1.8</version>
-            </extension>
-        </extensions>
-    </build>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.apache.maven</groupId>
-            <artifactId>maven-plugin-api</artifactId>
-            <version>2.2.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.maven</groupId>
-            <artifactId>maven-project</artifactId>
-            <version>2.2.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish.main.common</groupId>
-            <artifactId>simple-glassfish-api</artifactId>
-            <version>5.0</version>
-            <scope>compile</scope>
-        </dependency>
-    </dependencies>
-
-    <reporting>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-plugin-plugin</artifactId>
-                <version>3.5.2</version>
-            </plugin>
-        </plugins>
-    </reporting>
 
     <licenses>
         <license>
@@ -191,5 +73,15 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-    
+
+     <profiles>
+         <profile>
+             <id>oss-release</id>
+             <properties>
+                 <release.projectName>Embedded GlassFish Maven Plugin Relocation</release.projectName>
+                 <release.autoPublish>false</release.autoPublish>
+                 <release.waitUntil>published</release.waitUntil>
+             </properties>
+         </profile>
+     </profiles>
 </project>
